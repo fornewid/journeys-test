@@ -1,0 +1,9 @@
+<journey name="welcome-smoke">
+  <description>파이프라인 스모크: 에이전트가 각 스텝을 PASSED로 보고하는지 확인</description>
+  <actions>
+    <action>Launch the app</action>
+    <action>Verify the welcome screen is shown</action>
+    <action>Tap the "Get started" button</action>
+    <action>Verify the home screen is shown</action>
+  </actions>
+</journey>
