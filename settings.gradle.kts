@@ -3,7 +3,7 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
     }
-    includeBuild("gradle-plugin")
+    includeBuild("journeys-test-plugin")
 }
 
 dependencyResolutionManagement {

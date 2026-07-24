@@ -11,5 +11,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "journeys-test-build"
-include(":plugin")
+rootProject.name = "journeys-test-plugin"

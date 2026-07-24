@@ -1,12 +1,15 @@
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.serialization")
+    kotlin("jvm") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
     `java-gradle-plugin`
     id("com.gradle.plugin-publish") version "1.3.1"
+    id("com.vanniktech.maven.publish") version "0.34.0"
 }
 
-group = "io.github.fornewid.journeys-test"
-version = "0.1.0"
+val GROUP: String by project
+val VERSION_NAME: String by project
+group = GROUP
+version = VERSION_NAME
 
 dependencies {
     // On the plugin (buildscript) classpath; the journeysTest task runs the JUnit Platform
@@ -30,4 +33,9 @@ gradlePlugin {
             tags = listOf("android", "testing", "ui-testing", "journeys", "agent")
         }
     }
+}
+
+mavenPublishing {
+    publishToMavenCentral(automaticRelease = true)
+    signAllPublications()
 }
