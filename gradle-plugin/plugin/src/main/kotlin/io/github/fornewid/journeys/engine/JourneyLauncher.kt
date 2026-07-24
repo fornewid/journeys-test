@@ -6,18 +6,15 @@ import org.junit.platform.launcher.listeners.SummaryGeneratingListener
 import org.junit.platform.reporting.legacy.xml.LegacyXmlReportGeneratingListener
 import java.io.PrintWriter
 import java.nio.file.Path
-import kotlin.system.exitProcess
 
 /**
- * Entry point for the Gradle `journeysTest` task (JavaExec).
- *
- * Drives the JUnit Platform launcher directly — rather than Gradle's class-oriented Test task —
- * to run [JourneyTestEngine] and emit standard JUnit XML. Configured via [EngineConfig].
+ * Drives the JUnit Platform launcher to run [JourneyTestEngine] and emit standard JUnit XML.
+ * Called in-process by the Gradle `journeysTest` task. Configured via [EngineConfig].
  */
 object JourneyLauncher {
 
-    @JvmStatic
-    fun main(args: Array<String>) {
+    /** Runs all discovered journeys, writes the JUnit XML report, and returns the failure count. */
+    fun run(): Long {
         val out = PrintWriter(System.out)
         val summary = SummaryGeneratingListener()
 
@@ -34,6 +31,6 @@ object JourneyLauncher {
         if (s.containersFoundCount == 0L && s.testsFoundCount == 0L) {
             System.err.println("No journeys found. journeys.dir=${EngineConfig.journeysDir()}")
         }
-        if (s.totalFailureCount > 0) exitProcess(1)
+        return s.totalFailureCount
     }
 }

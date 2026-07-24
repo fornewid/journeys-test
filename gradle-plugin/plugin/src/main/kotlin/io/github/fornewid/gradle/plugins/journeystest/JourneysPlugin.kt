@@ -1,13 +1,9 @@
 package io.github.fornewid.gradle.plugins.journeystest
 
+import io.github.fornewid.journeys.engine.JourneyLauncher
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.attributes.Bundling
-import org.gradle.api.attributes.Category
-import org.gradle.api.attributes.LibraryElements
-import org.gradle.api.attributes.Usage
-import org.gradle.api.attributes.java.TargetJvmEnvironment
-import org.gradle.api.tasks.JavaExec
 
 /**
  * The `io.github.fornewid.journeys-test` plugin.
@@ -19,7 +15,7 @@ import org.gradle.api.tasks.JavaExec
  *
  * ```kotlin
  * plugins { id("io.github.fornewid.journeys-test") }
- * journeys { agentCommand = "claude -p ... {journey}" }
+ * journeys { agentCommand = "claude -p --allowedTools Bash" }
  * ```
  */
 class JourneysPlugin : Plugin<Project> {
@@ -32,22 +28,6 @@ class JourneysPlugin : Plugin<Project> {
             timeoutSeconds.convention(900L)
         }
 
-        // Run classpath for the engine. Declare standard runtime attributes explicitly since the
-        // consuming project may not apply the java plugin (otherwise variant selection is ambiguous).
-        val objects = project.objects
-        val runner = project.configurations.create("journeysTestRuntime") { config ->
-            config.isCanBeConsumed = false
-            config.isCanBeResolved = true
-            config.attributes { a ->
-                a.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
-                a.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
-                a.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))
-                a.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements::class.java, LibraryElements.JAR))
-                a.attribute(TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE, objects.named(TargetJvmEnvironment::class.java, TargetJvmEnvironment.STANDARD_JVM))
-            }
-        }
-        project.dependencies.add(runner.name, "io.github.fornewid.journeys-test:journeys-test-engine:$ENGINE_VERSION")
-
         // capture the individual providers, not the whole extension, so execution never reaches
         // back into the live Project
         val agentCommand = ext.agentCommand
@@ -57,24 +37,35 @@ class JourneysPlugin : Plugin<Project> {
         val reportsDir = ext.reportsDir
         val timeoutSeconds = ext.timeoutSeconds
 
-        project.tasks.register("journeysTest", JavaExec::class.java) { task ->
+        project.tasks.register("journeysTest") { task ->
             task.group = "verification"
             task.description = "Runs src/journeysTest/*.journey.xml against a connected device via the configured CLI agent."
-            task.classpath = runner
-            task.mainClass.set("io.github.fornewid.journeys.engine.JourneyLauncher")
             task.outputs.upToDateWhen { false } // always run: depends on live device state
-            task.doFirst {
-                agentCommand.orNull?.let { task.systemProperty("journey.agent.cmd", it) }
-                prompt.orNull?.let { task.systemProperty("journey.agent.prompt", it) }
-                task.systemProperty("journeys.dir", journeysDir.get().asFile.absolutePath)
-                task.systemProperty("journeys.out", outputDir.get().asFile.absolutePath)
-                task.systemProperty("journeys.reports", reportsDir.get().asFile.absolutePath)
-                task.systemProperty("journey.agent.timeoutSec", timeoutSeconds.get().toString())
+            task.doLast {
+                // pass config to the engine, run the JUnit Platform launcher in-process, then clean up
+                val props = buildMap {
+                    agentCommand.orNull?.let { put("journey.agent.cmd", it) }
+                    prompt.orNull?.let { put("journey.agent.prompt", it) }
+                    put("journeys.dir", journeysDir.get().asFile.absolutePath)
+                    put("journeys.out", outputDir.get().asFile.absolutePath)
+                    put("journeys.reports", reportsDir.get().asFile.absolutePath)
+                    put("journey.agent.timeoutSec", timeoutSeconds.get().toString())
+                }
+                props.forEach { (k, v) -> System.setProperty(k, v) }
+                val previousCl = Thread.currentThread().contextClassLoader
+                try {
+                    Thread.currentThread().contextClassLoader = JourneysPlugin::class.java.classLoader
+                    val failures = JourneyLauncher.run()
+                    if (failures > 0) {
+                        throw GradleException(
+                            "$failures journey(s) failed. See build/journey-results (JUnit XML) and build/journeys/report.html.",
+                        )
+                    }
+                } finally {
+                    Thread.currentThread().contextClassLoader = previousCl
+                    props.keys.forEach(System::clearProperty)
+                }
             }
         }
-    }
-
-    companion object {
-        const val ENGINE_VERSION = "0.1.0"
     }
 }
