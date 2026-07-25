@@ -14,7 +14,7 @@ import org.gradle.api.Project
  *
  * ```kotlin
  * plugins { id("io.github.fornewid.journeys-test") }
- * journeys { agentCommand = "claude -p --allowedTools=Bash" }
+ * journeys { agentCommand = "claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p" }
  * ```
  */
 class JourneysPlugin : Plugin<Project> {

@@ -1,9 +1,14 @@
-<journey name="welcome-smoke">
-  <description>파이프라인 스모크: 에이전트가 각 스텝을 PASSED로 보고하는지 확인</description>
+<journey name="now-in-android-onboarding">
+  <description>Now in Android 샘플의 관심 주제 선택부터 기사 상세 진입까지 확인</description>
   <actions>
-    <action>Launch the app</action>
-    <action>Verify the welcome screen is shown</action>
-    <action>Tap the "Get started" button</action>
-    <action>Verify the home screen is shown</action>
+    <action>Force-stop and cold-launch the app with package io.github.fornewid.journeys.sample</action>
+    <action>Verify "Now in Android" and "What are you interested in?" are shown</action>
+    <action>Tap the "Android" topic</action>
+    <action>Tap the "Done" button</action>
+    <action>Verify the "For you" feed and "Build better apps with Jetpack Compose" are shown</action>
+    <action>Tap "Build better apps with Jetpack Compose"</action>
+    <action>Verify the article detail shows "Build better apps with Jetpack Compose" and "Compose makes Android UI development faster"</action>
+    <action>Press the system back button</action>
+    <action>Verify the "For you" feed is shown again</action>
   </actions>
 </journey>

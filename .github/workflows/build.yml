@@ -18,11 +18,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
-      # Unit + TestKit tests cover the failure paths (agent exits non-zero, times out,
-      # verdict FAILED), which a passing sample journey never exercises.
+      # Unit + TestKit tests cover the paths a passing journey never exercises: the agent
+      # exiting non-zero, timing out, leaving children behind, or reporting FAILED.
+      # The sample needs a device and a real agent, so it is not run here.
       - name: Test and validate plugin
         working-directory: journeys-test-plugin
-        run: ./gradlew test validatePlugins publishToMavenLocal --stacktrace
+        run: ./gradlew spotlessCheck test validatePlugins publishToMavenLocal --stacktrace
 
-      - name: Run sample journey (device-free demo agent)
-        run: ./gradlew :sample:journeysTest --stacktrace
+      - name: Assemble the sample app
+        run: ./gradlew :sample:assembleDebug --stacktrace

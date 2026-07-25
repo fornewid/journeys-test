@@ -7,7 +7,9 @@ import org.gradle.api.provider.Property
 abstract class JourneysExtension {
     /**
      * The agent CLI invocation, without a prompt (the plugin appends the journey prompt).
-     * Examples: `claude -p --allowedTools Bash`, `codex exec --sandbox danger-full-access`, `agy -p`.
+     * Examples: `claude --no-session-persistence --allowedTools 'Bash(adb *)' -p`,
+     * `codex exec --ephemeral --sandbox workspace-write
+     * -c 'sandbox_workspace_write.network_access=true'`, `agy -p`.
      */
     abstract val agentCommand: Property<String>
 

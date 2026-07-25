@@ -36,14 +36,14 @@ Apply the plugin and set only the agent CLI you use. The prompt that carries the
 plugins { id("io.github.fornewid.journeys-test") version "0.1.0" }
 
 journeys {
-    agentCommand.set("claude -p --allowedTools=Bash")
+    agentCommand.set("claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p")
 }
 ```
 
 Any agent with a headless mode works; just change this value.
 
-- Claude Code: `claude -p --allowedTools=Bash`
-- Codex: `codex exec --sandbox danger-full-access`
+- Claude Code: `claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p`
+- Codex: `codex exec --ephemeral --sandbox workspace-write -c 'sandbox_workspace_write.network_access=true'`
 - Antigravity: `agy -p`
 
 To customize the built-in prompt, override `prompt`; its `{journey}` is replaced with the journey file's absolute path.
@@ -69,11 +69,14 @@ The plugin holds no judgment logic; the agent named by `agentCommand` is the bra
 
 ## Sample
 
+Start an Android emulator or connect a device, then run the compact offline Compose sample:
+
 ```bash
 ./gradlew :sample:journeysTest
 ```
 
-Passes with no device: `tools/echo-agent.sh` is a demo agent that reports every step PASSED. For real UI testing, change `agentCommand` in `sample/build.gradle.kts` to a real agent and connect a device.
+The task builds and installs the sample APK, then Codex runs the onboarding-to-article journey.
+Override the agent with `-PjourneyAgentCommand=...`; see `sample/README.md` for the Claude command.
 
 ## Result view
 
