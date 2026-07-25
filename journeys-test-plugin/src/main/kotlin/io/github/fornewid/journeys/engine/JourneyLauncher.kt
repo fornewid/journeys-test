@@ -1,36 +1,72 @@
 package io.github.fornewid.journeys.engine
 
+import org.junit.platform.engine.UniqueId
+import org.junit.platform.engine.discovery.DiscoverySelectors
+import org.junit.platform.launcher.core.LauncherConfig
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener
 import org.junit.platform.reporting.legacy.xml.LegacyXmlReportGeneratingListener
 import java.io.PrintWriter
-import java.nio.file.Path
 
 /**
  * Drives the JUnit Platform launcher to run [JourneyTestEngine] and emit standard JUnit XML.
- * Called in-process by the Gradle `journeysTest` task. Configured via [EngineConfig].
+ * Called in-process by the Gradle `journeysTest` task.
+ *
+ * The engine is registered explicitly rather than through the service loader, so discovery
+ * neither depends on the context class loader nor picks up unrelated engines that happen to be
+ * on the build's classpath.
  */
 object JourneyLauncher {
-
-    /** Runs all discovered journeys, writes the JUnit XML report, and returns the failure count. */
-    fun run(): Long {
+    /**
+     * Runs the discovered journeys and returns how many failed.
+     *
+     * @param journeyFilter when set, only the journey with this key runs.
+     */
+    fun run(
+        config: JourneyConfig,
+        journeyFilter: String? = null,
+    ): Long {
         val out = PrintWriter(System.out)
         val summary = SummaryGeneratingListener()
 
-        val launcher = LauncherFactory.create()
+        val launcher =
+            LauncherFactory.create(
+                LauncherConfig
+                    .builder()
+                    .enableTestEngineAutoRegistration(false)
+                    .addTestEngines(JourneyTestEngine())
+                    .build(),
+            )
+        config.reportsDir.mkdirs()
         launcher.registerTestExecutionListeners(
-            LegacyXmlReportGeneratingListener(Path.of(EngineConfig.reportsDir()), out),
+            LegacyXmlReportGeneratingListener(config.reportsDir.toPath(), out),
             summary,
         )
-        launcher.execute(LauncherDiscoveryRequestBuilder.request().build())
 
-        val s = summary.summary
-        s.printTo(out)
-        s.printFailuresTo(out)
-        if (s.containersFoundCount == 0L && s.testsFoundCount == 0L) {
-            System.err.println("No journeys found. journeys.dir=${EngineConfig.journeysDir()}")
+        val request =
+            LauncherDiscoveryRequestBuilder
+                .request()
+                .apply {
+                    config.toParameters().forEach { (key, value) -> configurationParameter(key, value) }
+                    journeyFilter?.let {
+                        selectors(
+                            DiscoverySelectors.selectUniqueId(
+                                UniqueId
+                                    .forEngine(JourneyTestEngine.ENGINE_ID)
+                                    .append(JourneyTestEngine.SEGMENT_TYPE, it),
+                            ),
+                        )
+                    }
+                }.build()
+        launcher.execute(request)
+
+        val result = summary.summary
+        result.printTo(out)
+        result.printFailuresTo(out)
+        if (result.testsFoundCount == 0L) {
+            System.err.println("No journeys found in ${config.journeysDir}")
         }
-        return s.totalFailureCount
+        return result.totalFailureCount
     }
 }

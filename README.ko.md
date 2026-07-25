@@ -36,13 +36,13 @@ Android Studio는 이 journey를 Google 백엔드로 실행한다. 이 플러그
 plugins { id("io.github.fornewid.journeys-test") version "0.1.0" }
 
 journeys {
-    agentCommand.set("claude -p --allowedTools Bash")
+    agentCommand.set("claude -p --allowedTools=Bash")
 }
 ```
 
 헤드리스 모드를 지원하는 에이전트면 무엇이든 쓸 수 있고, 이 값만 바꾸면 된다.
 
-- Claude Code: `claude -p --allowedTools Bash`
+- Claude Code: `claude -p --allowedTools=Bash`
 - Codex: `codex exec --sandbox danger-full-access`
 - Antigravity: `agy -p`
 

@@ -4,5 +4,5 @@ plugins {
 
 journeys {
     // device-free demo agent (reports each step PASSED); swap for a real agent + device for actual UI tests
-    agentCommand.set("bash ${rootDir}/tools/echo-agent.sh")
+    agentCommand.set("claude -p --allowedTools Bash")
 }

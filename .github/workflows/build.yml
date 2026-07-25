@@ -18,9 +18,11 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
-      - name: Validate plugin
+      # Unit + TestKit tests cover the failure paths (agent exits non-zero, times out,
+      # verdict FAILED), which a passing sample journey never exercises.
+      - name: Test and validate plugin
         working-directory: journeys-test-plugin
-        run: ./gradlew validatePlugins publishToMavenLocal --stacktrace
+        run: ./gradlew test validatePlugins publishToMavenLocal --stacktrace
 
       - name: Run sample journey (device-free demo agent)
         run: ./gradlew :sample:journeysTest --stacktrace

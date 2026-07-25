@@ -8,41 +8,78 @@ import java.util.Base64
  * the agent captured (as data URIs) so the single file can be opened or shared as-is.
  */
 internal object ResultReport {
-
-    fun write(verdicts: List<Verdict>, outFile: File) {
-        outFile.writeText(page(verdicts.joinToString("\n", transform = ::journey)))
+    fun write(
+        verdicts: List<Verdict>,
+        outFile: File,
+        workingDir: File,
+    ) {
+        outFile.parentFile?.mkdirs()
+        outFile.writeText(page(verdicts.joinToString("\n") { journey(it, workingDir) }))
     }
 
-    private fun journey(v: Verdict): String {
-        val passed = v.results.count { it.status == "PASSED" }
-        val ok = v.results.isNotEmpty() && passed == v.results.size
+    private fun journey(
+        v: Verdict,
+        workingDir: File,
+    ): String {
+        val ok = v.allPassed
         return """
             |<section class="journey">
             |  <div class="jh"><span class="badge ${cls(ok)}">${if (ok) "PASSED" else "FAILED"}</span>
-            |    <h2>${esc(v.journey)}</h2><span class="count">$passed/${v.results.size}</span></div>
-            |  ${v.results.joinToString("\n  ", transform = ::action)}
+            |    <h2>${esc(v.journey)}</h2><span class="count">${v.passedCount}/${v.results.size}</span></div>
+            |  ${v.results.joinToString("\n  ") { action(it, workingDir) }}
             |</section>
-        """.trimMargin()
+            """.trimMargin()
     }
 
-    private fun action(r: ActionResult): String {
-        val c = when (r.status) { "PASSED" -> "pass"; "FAILED" -> "fail"; else -> "skip" }
-        val reason = r.reasoning?.ifBlank { null }?.let { "<p class=\"reason\">${esc(it)}</p>" }.orEmpty()
-        val comment = r.comment?.ifBlank { null }?.let { "<p class=\"comment\">${esc(it)}</p>" }.orEmpty()
-        val cmds = r.commands.ifEmpty { null }
-            ?.joinToString("<br>") { esc(it) }?.let { "<div class=\"cmds\">$it</div>" }.orEmpty()
-        val shots = r.artifacts.mapNotNull(::dataUri).joinToString("") { "<img src=\"$it\" alt=\"\">" }
-            .ifEmpty { null }?.let { "<div class=\"shots\">$it</div>" }.orEmpty()
-        return """<div class="act $c"><div class="ah"><span class="pill $c">${esc(r.status)}</span>""" +
+    private fun action(
+        r: ActionResult,
+        workingDir: File,
+    ): String {
+        val c =
+            when (r.status) {
+                ActionStatus.PASSED -> "pass"
+                ActionStatus.FAILED -> "fail"
+                else -> "skip"
+            }
+        val reason =
+            r.reasoning
+                ?.ifBlank { null }
+                ?.let { "<p class=\"reason\">${esc(it)}</p>" }
+                .orEmpty()
+        val comment =
+            r.comment
+                ?.ifBlank { null }
+                ?.let { "<p class=\"comment\">${esc(it)}</p>" }
+                .orEmpty()
+        val cmds =
+            r.commands
+                .ifEmpty { null }
+                ?.joinToString("<br>") { esc(it) }
+                ?.let { "<div class=\"cmds\">$it</div>" }
+                .orEmpty()
+        val shots =
+            r.artifacts
+                .mapNotNull { dataUri(it, workingDir) }
+                .joinToString("") { "<img src=\"$it\" alt=\"\">" }
+                .ifEmpty { null }
+                ?.let { "<div class=\"shots\">$it</div>" }
+                .orEmpty()
+        return """<div class="act $c"><div class="ah"><span class="pill $c">${esc(r.status.name)}</span>""" +
             """<span>${esc(r.action)}</span></div>$reason$comment$cmds$shots</div>"""
     }
 
-    private fun dataUri(path: String): String? {
-        val f = File(path).let { if (it.isAbsolute) it else File(System.getProperty("user.dir"), path) }
+    private fun dataUri(
+        path: String,
+        workingDir: File,
+    ): String? {
+        val f = File(path).let { if (it.isAbsolute) it else workingDir.resolve(path) }
         if (!f.isFile) return null
-        val mime = when (f.extension.lowercase()) {
-            "jpg", "jpeg" -> "image/jpeg"; "webp" -> "image/webp"; else -> "image/png"
-        }
+        val mime =
+            when (f.extension.lowercase()) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "webp" -> "image/webp"
+                else -> "image/png"
+            }
         return "data:$mime;base64,${Base64.getEncoder().encodeToString(f.readBytes())}"
     }
 
@@ -50,7 +87,8 @@ internal object ResultReport {
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    private fun page(body: String) = """
+    private fun page(body: String) =
+        """
         |<!doctype html><html lang="ko"><head><meta charset="utf-8">
         |<meta name="viewport" content="width=device-width,initial-scale=1"><title>Journey results</title>
         |<style>
@@ -75,5 +113,5 @@ internal object ResultReport {
         |</style></head><body><div class="wrap"><h1>Journey results</h1>
         |$body
         |</div></body></html>
-    """.trimMargin()
+        """.trimMargin()
 }

@@ -36,13 +36,13 @@ Apply the plugin and set only the agent CLI you use. The prompt that carries the
 plugins { id("io.github.fornewid.journeys-test") version "0.1.0" }
 
 journeys {
-    agentCommand.set("claude -p --allowedTools Bash")
+    agentCommand.set("claude -p --allowedTools=Bash")
 }
 ```
 
 Any agent with a headless mode works; just change this value.
 
-- Claude Code: `claude -p --allowedTools Bash`
+- Claude Code: `claude -p --allowedTools=Bash`
 - Codex: `codex exec --sandbox danger-full-access`
 - Antigravity: `agy -p`
 
