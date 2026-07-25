@@ -19,6 +19,11 @@ dependencies {
     implementation("org.junit.platform:junit-platform-engine")
     implementation("org.junit.platform:junit-platform-reporting")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    testImplementation(kotlin("test-junit5"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 gradlePlugin {

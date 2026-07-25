@@ -16,8 +16,8 @@ internal object EngineConfig {
     /** Built-in instruction appended to the agent command; `{journey}` is the file's absolute path. */
     const val DEFAULT_PROMPT: String =
         "Read the journey at {journey} and run each <action> in order on the connected Android device. " +
-            "Use the android layout and android screen capture commands to inspect the screen, and adb " +
-            "to tap, type, and swipe. Actions that start with check or verify only inspect the current " +
+            "Use adb uiautomator dump and adb exec-out screencap to inspect the screen, and adb input " +
+            "commands to tap, type, swipe, and press keys. Actions that start with check or verify only inspect the current " +
             "screen. Judge each action PASSED or FAILED, and stop at the first FAILED. Then print only " +
             "the verdict as JSON between the markers <<<VERDICT>>> and <<<END>>>, with fields journey and " +
             "results, where each result has action, status (PASSED or FAILED), and reasoning."
