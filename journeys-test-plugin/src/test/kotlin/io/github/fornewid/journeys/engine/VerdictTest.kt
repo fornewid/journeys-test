@@ -1,23 +1,15 @@
 package io.github.fornewid.journeys.engine
 
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class VerdictTest {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-            coerceInputValues = true
-        }
-
     @Test
     fun `parses a verdict and reads every field`() {
         val verdict =
-            json.decodeFromString<Verdict>(
+            JourneyJson.lenient.decodeFromString<Verdict>(
                 """
                 {"journey":"login","results":[
                   {"action":"Tap login","status":"PASSED","reasoning":"button was visible",
@@ -36,7 +28,7 @@ class VerdictTest {
     @Test
     fun `unknown and missing status values do not fail parsing`() {
         val verdict =
-            json.decodeFromString<Verdict>(
+            JourneyJson.lenient.decodeFromString<Verdict>(
                 """{"journey":"j","results":[{"action":"a","status":"WAT"},{"action":"b"}]}""",
             )
         assertTrue(verdict.results.all { it.status == ActionStatus.UNKNOWN })
@@ -45,7 +37,7 @@ class VerdictTest {
     @Test
     fun `ignores fields this version does not know`() {
         val verdict =
-            json.decodeFromString<Verdict>(
+            JourneyJson.lenient.decodeFromString<Verdict>(
                 """{"journey":"j","results":[{"action":"a","status":"PASSED","futureField":42}]}""",
             )
         assertTrue(verdict.allPassed)

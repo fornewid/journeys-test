@@ -21,7 +21,7 @@ class JourneysPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val ext =
             project.extensions.create("journeys", JourneysExtension::class.java).apply {
-                agentCommand.convention(project.providers.environmentVariable(ENV_AGENT_COMMAND))
+                agentCommand.convention(project.providers.environmentVariable(JourneyConfig.ENV_AGENT_COMMAND))
                 prompt.convention(JourneyConfig.DEFAULT_PROMPT)
                 journeysDir.convention(project.layout.projectDirectory.dir(JourneyConfig.DEFAULT_JOURNEYS_DIR))
                 outputDir.convention(project.layout.buildDirectory.dir(JourneyConfig.DEFAULT_OUTPUT_DIR))
@@ -41,9 +41,5 @@ class JourneysPlugin : Plugin<Project> {
             task.reportsDir.set(ext.reportsDir)
             task.workingDir.set(project.layout.projectDirectory)
         }
-    }
-
-    private companion object {
-        const val ENV_AGENT_COMMAND = "JOURNEY_AGENT_CMD"
     }
 }

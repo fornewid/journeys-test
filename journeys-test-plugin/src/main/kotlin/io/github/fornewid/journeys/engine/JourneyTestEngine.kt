@@ -1,6 +1,5 @@
 package io.github.fornewid.journeys.engine
 
-import kotlinx.serialization.json.Json
 import org.junit.platform.engine.EngineDiscoveryRequest
 import org.junit.platform.engine.ExecutionRequest
 import org.junit.platform.engine.TestDescriptor
@@ -59,7 +58,7 @@ class JourneyTestEngine : TestEngine {
                     config.outputDir
                         .resolve("${journey.key}.verdict.json")
                         .apply { parentFile?.mkdirs() }
-                        .writeText(prettyJson.encodeToString(verdict))
+                        .writeText(JourneyJson.pretty.encodeToString(verdict))
                     if (verdict.allPassed) {
                         TestExecutionResult.successful()
                     } else {
@@ -68,6 +67,12 @@ class JourneyTestEngine : TestEngine {
                         )
                     }
                 } catch (t: Throwable) {
+                    // Record it too, so the HTML report and the JUnit XML agree on which journeys ran.
+                    verdicts +=
+                        Verdict(
+                            journey.key,
+                            listOf(ActionResult("run the journey", ActionStatus.FAILED, comment = t.message)),
+                        )
                     TestExecutionResult.failed(t)
                 }
             listener.executionFinished(journey, result)
@@ -87,7 +92,7 @@ class JourneyTestEngine : TestEngine {
         if (selected.isEmpty()) return
         root.children
             .toList()
-            .filterNot { child -> selected.any { it == child.uniqueId || it.hasPrefix(child.uniqueId) } }
+            .filterNot { child -> selected.any { it.hasPrefix(child.uniqueId) } }
             .forEach(root::removeChild)
     }
 
@@ -107,6 +112,5 @@ class JourneyTestEngine : TestEngine {
     companion object {
         const val ENGINE_ID = "journeys-test"
         const val SEGMENT_TYPE = "journey"
-        private val prettyJson = Json { prettyPrint = true }
     }
 }

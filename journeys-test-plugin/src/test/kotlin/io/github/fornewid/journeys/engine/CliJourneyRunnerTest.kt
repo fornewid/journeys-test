@@ -13,8 +13,6 @@ class CliJourneyRunnerTest {
     @TempDir
     lateinit var tmp: File
 
-    private var scripts = 0
-
     private fun journeyFile(dir: File = tmp): File =
         File(dir, "login.journey.xml").apply {
             parentFile.mkdirs()
@@ -36,7 +34,7 @@ class CliJourneyRunnerTest {
     /** Writes an agent script and returns the command that runs it. */
     private fun agent(script: String): String =
         "bash " +
-            File(tmp, "agent-${scripts++}.sh")
+            File(tmp, "agent.sh")
                 .apply { writeText(script) }
                 .absolutePath
 

@@ -48,7 +48,7 @@ object JourneyLauncher {
             LauncherDiscoveryRequestBuilder
                 .request()
                 .apply {
-                    config.toParameters().forEach { (key, value) -> configurationParameter(key, value) }
+                    configurationParameters(config.toParameters())
                     journeyFilter?.let {
                         selectors(
                             DiscoverySelectors.selectUniqueId(

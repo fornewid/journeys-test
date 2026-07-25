@@ -1,7 +1,21 @@
 package io.github.fornewid.journeys.engine
 
+import kotlinx.serialization.json.Json
 import org.junit.platform.engine.ConfigurationParameters
 import java.io.File
+
+/** The JSON settings shared by everything that reads or writes a verdict. */
+internal object JourneyJson {
+    /** Tolerates unknown fields and unrecognized [ActionStatus] values, which become UNKNOWN. */
+    val lenient =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            coerceInputValues = true
+        }
+
+    val pretty = Json { prettyPrint = true }
+}
 
 /**
  * Everything the engine needs for one run.
@@ -40,6 +54,16 @@ data class JourneyConfig(
         const val DEFAULT_TIMEOUT_SECONDS = 900L
         const val JOURNEY_FILE_SUFFIX = ".journey.xml"
 
+        /** Replaced with the journey file's absolute path, in both the prompt and the agent command. */
+        const val JOURNEY_PLACEHOLDER = "{journey}"
+
+        /** The verdict envelope. Named in the prompt and matched when parsing, so they must agree. */
+        const val MARKER_START = "<<<VERDICT>>>"
+        const val MARKER_END = "<<<END>>>"
+
+        /** Read by the plugin as the convention for `agentCommand`. */
+        const val ENV_AGENT_COMMAND = "JOURNEY_AGENT_CMD"
+
         const val KEY_JOURNEYS_DIR = "journeys.dir"
         const val KEY_OUTPUT_DIR = "journeys.out"
         const val KEY_REPORTS_DIR = "journeys.reports"
@@ -48,49 +72,42 @@ data class JourneyConfig(
         const val KEY_PROMPT = "journeys.agent.prompt"
         const val KEY_TIMEOUT_SECONDS = "journeys.agent.timeoutSec"
 
-        /** Instruction appended to the agent command; `{journey}` is the file's absolute path. */
+        /** Instruction appended to the agent command; [JOURNEY_PLACEHOLDER] is the file's absolute path. */
         const val DEFAULT_PROMPT: String =
-            "Read the journey at {journey} and run each <action> in order on the connected Android device. " +
-                "Use the android layout and android screen capture commands to inspect the screen, and adb " +
-                "to tap, type, and swipe. Actions that start with check or verify only inspect the current " +
-                "screen. Judge each action PASSED or FAILED, and stop at the first FAILED. Then print only " +
-                "the verdict as JSON between the markers <<<VERDICT>>> and <<<END>>>, with fields journey and " +
-                "results, where each result has action, status (PASSED or FAILED), and reasoning."
+            "Read the journey at $JOURNEY_PLACEHOLDER and run each <action> in order on the connected " +
+                "Android device. Use the android layout and android screen capture commands to inspect " +
+                "the screen, and adb to tap, type, and swipe. Actions that start with check or verify " +
+                "only inspect the current screen. Judge each action PASSED or FAILED, and stop at the " +
+                "first FAILED. Save a screenshot for each action. Then print only the verdict as JSON " +
+                "between the markers $MARKER_START and $MARKER_END, with fields journey and results, " +
+                "where each result has action, status (PASSED or FAILED), reasoning, and artifacts " +
+                "(the paths of the screenshots you saved)."
 
         /**
-         * Reads the config back on the engine side. Values come from the discovery request, and
-         * JUnit itself falls back to system properties and `junit-platform.properties`, so running
-         * the engine standalone keeps working; environment variables are the last fallback.
+         * Reads the config back on the engine side.
+         *
+         * Values come from the discovery request; JUnit itself falls back to system properties and
+         * `junit-platform.properties`, which is what keeps the engine usable standalone (registered
+         * through `META-INF/services`) without a second configuration vocabulary.
          */
-        fun from(
-            params: ConfigurationParameters,
-            workingDir: File = File(".").absoluteFile,
-        ): JourneyConfig {
-            fun get(
-                key: String,
-                env: String,
-            ): String? =
-                params.get(key).orElse(null)?.takeIf { it.isNotBlank() }
-                    ?: System.getenv(env)?.takeIf { it.isNotBlank() }
+        fun from(params: ConfigurationParameters): JourneyConfig {
+            fun get(key: String): String? = params.get(key).orElse(null)?.takeIf { it.isNotBlank() }
 
-            val base = get(KEY_WORKING_DIR, "JOURNEYS_WORKING_DIR")?.let(::File) ?: workingDir
+            val base = File(get(KEY_WORKING_DIR) ?: ".").absoluteFile
 
             fun dir(
                 key: String,
-                env: String,
                 default: String,
-            ) = get(key, env)?.let(::File) ?: base.resolve(default)
+            ) = get(key)?.let(::File) ?: base.resolve(default)
 
             return JourneyConfig(
-                journeysDir = dir(KEY_JOURNEYS_DIR, "JOURNEYS_DIR", DEFAULT_JOURNEYS_DIR),
-                outputDir = dir(KEY_OUTPUT_DIR, "JOURNEYS_OUT", "build/$DEFAULT_OUTPUT_DIR"),
-                reportsDir = dir(KEY_REPORTS_DIR, "JOURNEYS_REPORTS", "build/$DEFAULT_REPORTS_DIR"),
+                journeysDir = dir(KEY_JOURNEYS_DIR, DEFAULT_JOURNEYS_DIR),
+                outputDir = dir(KEY_OUTPUT_DIR, DEFAULT_OUTPUT_DIR),
+                reportsDir = dir(KEY_REPORTS_DIR, DEFAULT_REPORTS_DIR),
                 workingDir = base,
-                agentCommand = get(KEY_AGENT_COMMAND, "JOURNEY_AGENT_CMD"),
-                prompt = get(KEY_PROMPT, "JOURNEY_AGENT_PROMPT") ?: DEFAULT_PROMPT,
-                timeoutSeconds =
-                    get(KEY_TIMEOUT_SECONDS, "JOURNEY_AGENT_TIMEOUT_SEC")?.toLongOrNull()
-                        ?: DEFAULT_TIMEOUT_SECONDS,
+                agentCommand = get(KEY_AGENT_COMMAND),
+                prompt = get(KEY_PROMPT) ?: DEFAULT_PROMPT,
+                timeoutSeconds = get(KEY_TIMEOUT_SECONDS)?.toLongOrNull() ?: DEFAULT_TIMEOUT_SECONDS,
             )
         }
     }

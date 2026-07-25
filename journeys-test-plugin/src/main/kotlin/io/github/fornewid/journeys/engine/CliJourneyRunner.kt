@@ -1,9 +1,6 @@
 package io.github.fornewid.journeys.engine
 
-import kotlinx.serialization.json.Json
-import java.io.BufferedReader
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -15,19 +12,21 @@ import java.util.concurrent.TimeUnit
  * and the prompt carries the journeys protocol with `{journey}` replaced by the file's absolute
  * path. The agent drives the device and prints the verdict JSON between the `<<<VERDICT>>>` and
  * `<<<END>>>` markers.
+ *
+ * POSIX only: the agent is spawned through `bash -lc`, a login shell, so agent CLIs installed by
+ * nvm/homebrew resolve under the Gradle daemon's minimal environment.
  */
 object CliJourneyRunner {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            isLenient = true
-            coerceInputValues = true // unrecognized status values become ActionStatus.UNKNOWN
-        }
-    private val verdictBlock = Regex("<<<VERDICT>>>(.*?)<<<END>>>", RegexOption.DOT_MATCHES_ALL)
+    private val verdictBlock =
+        Regex(
+            "${Regex.escape(JourneyConfig.MARKER_START)}(.*?)${Regex.escape(JourneyConfig.MARKER_END)}",
+            RegexOption.DOT_MATCHES_ALL,
+        )
 
     /**
      * Runs the agent in its own process group so a timeout kills the whole tree, not just the
      * shell: an abandoned agent would otherwise keep driving the device and burning tokens.
+     * `destroy()` (SIGTERM) is what triggers the trap below, so it must come before `destroyForcibly()`.
      */
     private val processWrapper =
         """
@@ -35,16 +34,14 @@ object CliJourneyRunner {
         bash -lc "${'$'}1" &
         agent_pid=${'$'}!
         cleanup() {
-          if kill -TERM -- "-${'$'}agent_pid" 2>/dev/null; then
+          kill -TERM -- "-${'$'}agent_pid" 2>/dev/null && {
             sleep 0.1
-            kill -KILL -- "-${'$'}agent_pid" 2>/dev/null || true
-          fi
+            kill -KILL -- "-${'$'}agent_pid" 2>/dev/null
+          }
         }
         trap cleanup EXIT
         trap 'cleanup; exit 143' TERM INT
         wait "${'$'}agent_pid"
-        status=${'$'}?
-        exit "${'$'}status"
         """.trimIndent()
 
     /** @param key the journey's path relative to the journeys dir, without the suffix. */
@@ -59,139 +56,67 @@ object CliJourneyRunner {
             config.agentCommand
                 ?: error(
                     "No agent command configured. Set the agent CLI to use via journeys { agentCommand = ... } " +
-                        "in build.gradle or the JOURNEY_AGENT_CMD env var. " +
+                        "in build.gradle or the ${JourneyConfig.ENV_AGENT_COMMAND} env var. " +
                         "The plugin appends the journey prompt automatically.",
                 )
         val path = journey.absolutePath
-        val prompt = config.prompt.replace("{journey}", path)
-        val command = "${agentCommand.replace("{journey}", singleQuote(path))} ${singleQuote(prompt)}"
+        // The prompt is quoted as a whole, so it carries the raw path; the agent command is
+        // interpolated into the shell string, so its placeholder is quoted on its own.
+        val prompt = config.prompt.replace(JourneyConfig.JOURNEY_PLACEHOLDER, path)
+        val command =
+            "${agentCommand.replace(JourneyConfig.JOURNEY_PLACEHOLDER, singleQuote(path))} ${singleQuote(prompt)}"
 
+        // stdout and stderr are redirected to separate files: only stdout may carry the verdict,
+        // stderr is kept for diagnostics, and writing to files (rather than pipes) means a
+        // timeout never has to race a reader that an inherited child is holding open.
+        val log = config.outputDir.resolve("$key.agent.log").apply { parentFile?.mkdirs() }
+        val errorLog = config.outputDir.resolve("$key.agent.err.log")
         val process =
             ProcessBuilder("bash", "-c", processWrapper, "journeys-agent", command)
                 .directory(config.workingDir)
+                .redirectOutput(log)
+                .redirectError(errorLog)
                 .start()
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(config.timeoutSeconds)
         process.outputStream.close() // the agent gets EOF instead of waiting on stdin
 
-        // stdout and stderr are read separately: only stdout may carry the verdict, while stderr
-        // is kept for diagnostics.
-        val stdout = StringBuilder()
-        val stderr = StringBuilder()
-        val stdoutReader = readAsync(process.inputStream.bufferedReader(), stdout)
-        val stderrReader = readAsync(process.errorStream.bufferedReader(), stderr)
+        fun fail(reason: String): Nothing {
+            val tail = (log.textOrEmpty() + errorLog.textOrEmpty()).takeLast(2048)
+            error("$reason (journey=$key).\nSee $log\n--- last 2KB of output ---\n$tail")
+        }
 
         if (!process.waitFor(config.timeoutSeconds, TimeUnit.SECONDS)) {
             terminate(process)
-            closeOutputStreams(process)
-            joinReadersAfterClose(stdoutReader, stderrReader)
-            fail(config, key, "agent did not finish within ${config.timeoutSeconds}s", stdout, stderr)
-        }
-        if (!joinReadersUntil(deadline, stdoutReader, stderrReader)) {
-            closeOutputStreams(process)
-            joinReadersAfterClose(stdoutReader, stderrReader)
-            fail(config, key, "agent output did not close within ${config.timeoutSeconds}s", stdout, stderr)
+            fail("agent did not finish within ${config.timeoutSeconds}s")
         }
         if (process.exitValue() != 0) {
-            fail(config, key, "agent exited with code ${process.exitValue()}", stdout, stderr)
+            fail("agent exited with code ${process.exitValue()}")
         }
         // The prompt itself names both markers, so take the last block rather than the first.
         val block =
             verdictBlock
-                .findAll(stdout)
+                .findAll(log.textOrEmpty())
                 .lastOrNull()
                 ?.groupValues
                 ?.get(1)
                 ?.trim()
-                ?: fail(
-                    config,
-                    key,
-                    "no verdict block found; check that the agent printed <<<VERDICT>>>…<<<END>>> to stdout",
-                    stdout,
-                    stderr,
-                )
-        return json.decodeFromString<Verdict>(block.withoutMarkdownFence())
+                ?: fail("no verdict block found; check that the agent printed the markers to stdout")
+        return JourneyJson.lenient.decodeFromString<Verdict>(block.withoutMarkdownFence())
     }
-
-    /** Keeps the agent's output next to the verdicts for debugging, then fails with a tail of it. */
-    private fun fail(
-        config: JourneyConfig,
-        key: String,
-        reason: String,
-        stdout: StringBuilder,
-        stderr: StringBuilder,
-    ): Nothing {
-        val output = combinedOutput(stdout, stderr)
-        val log = config.outputDir.resolve("$key.agent.log").apply { parentFile?.mkdirs() }
-        runCatching { log.writeText(output) }
-        error("$reason (journey=$key).\nSee $log\n--- last 2KB of output ---\n${output.takeLast(2048)}")
-    }
-
-    private fun readAsync(
-        reader: BufferedReader,
-        output: StringBuilder,
-    ): Thread =
-        Thread {
-            try {
-                reader.useLines { lines -> lines.forEach { output.appendLine(it) } }
-            } catch (_: IOException) {
-                // The main thread closes streams when the configured timeout expires.
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
 
     private fun terminate(process: Process) {
         process.destroy()
         if (!process.waitFor(1, TimeUnit.SECONDS)) {
-            process.destroyForcibly()
-            process.waitFor(1, TimeUnit.SECONDS)
+            process.destroyForcibly().waitFor(1, TimeUnit.SECONDS)
         }
     }
 
-    private fun closeOutputStreams(process: Process) {
-        runCatching { process.inputStream.close() }
-        runCatching { process.errorStream.close() }
-    }
-
-    private fun joinReadersUntil(
-        deadline: Long,
-        vararg readers: Thread,
-    ): Boolean {
-        readers.forEach { reader ->
-            if (!reader.isAlive) return@forEach
-            val remaining = deadline - System.nanoTime()
-            if (remaining <= 0) return false
-            reader.join(TimeUnit.NANOSECONDS.toMillis(remaining).coerceAtLeast(1))
-            if (reader.isAlive) return false
-        }
-        return true
-    }
-
-    private fun joinReadersAfterClose(vararg readers: Thread) {
-        readers.forEach { it.join(1_000) }
-    }
-
-    private fun combinedOutput(
-        stdout: StringBuilder,
-        stderr: StringBuilder,
-    ): String =
-        buildString {
-            append(stdout)
-            if (isNotEmpty() && stderr.isNotEmpty()) appendLine()
-            append(stderr)
-        }
+    private fun File.textOrEmpty(): String = if (isFile) readText() else ""
 
     /** Agents often wrap JSON in a markdown fence; unwrap it before parsing. */
     private fun String.withoutMarkdownFence(): String {
         val value = trim()
         if (!value.startsWith("```") || !value.endsWith("```")) return value
-        val openingFenceEnd = value.indexOf('\n')
-        if (openingFenceEnd < 0) return value
-        return value
-            .substring(openingFenceEnd + 1)
-            .removeSuffix("```")
-            .trim()
+        return value.substringAfter('\n', value).removeSuffix("```").trim()
     }
 
     /** Wraps a string as a single shell argument (safe even if it contains quotes or spaces). */

@@ -55,7 +55,7 @@ class JourneysPluginFunctionalTest {
 
     @Test
     fun `explains what to configure when no agent command is set`() {
-        givenProject(verdict = "unused", configureAgent = false)
+        givenProject(configureAgent = false)
 
         val result = runner("journeysTest").buildAndFail()
 
@@ -63,7 +63,7 @@ class JourneysPluginFunctionalTest {
     }
 
     private fun givenProject(
-        verdict: String,
+        verdict: String = "{}",
         configureAgent: Boolean = true,
     ) {
         val agent = write("agent.sh", "echo '<<<VERDICT>>>$verdict<<<END>>>'")
