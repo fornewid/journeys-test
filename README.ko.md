@@ -36,14 +36,14 @@ Android Studio는 이 journey를 Google 백엔드로 실행한다. 이 플러그
 plugins { id("io.github.fornewid.journeys-test") version "0.1.0" }
 
 journeys {
-    agentCommand.set("claude -p --allowedTools Bash")
+    agentCommand.set("claude --no-session-persistence --allowedTools 'Bash(adb *)' -p")
 }
 ```
 
 헤드리스 모드를 지원하는 에이전트면 무엇이든 쓸 수 있고, 이 값만 바꾸면 된다.
 
-- Claude Code: `claude -p --allowedTools Bash`
-- Codex: `codex exec --sandbox danger-full-access`
+- Claude Code: `claude --no-session-persistence --allowedTools 'Bash(adb *)' -p`
+- Codex: `codex exec --ephemeral --sandbox workspace-write -c 'sandbox_workspace_write.network_access=true'`
 - Antigravity: `agy -p`
 
 내장 프롬프트를 직접 바꾸고 싶으면 `prompt`로 덮어쓴다. 그 안의 `{journey}`가 journey 파일의 절대경로로 치환된다.
@@ -69,11 +69,14 @@ journeys {
 
 ## 샘플
 
+Android 에뮬레이터를 실행하거나 기기를 연결한 뒤, 오프라인 단일 Compose 샘플을 실행한다.
+
 ```bash
 ./gradlew :sample:journeysTest
 ```
 
-기기 없이 바로 통과한다. `tools/echo-agent.sh`가 각 스텝을 PASSED로 보고하는 데모 에이전트다. 실제 UI 테스트를 하려면 `sample/build.gradle.kts`의 `agentCommand`를 진짜 에이전트로 바꾸고 에뮬레이터를 연결한다.
+태스크가 샘플 APK를 빌드·설치하고 Codex가 온보딩부터 기사 상세까지 journey를 수행한다.
+`-PjourneyAgentCommand=...`으로 에이전트를 바꿀 수 있으며 Claude 명령은 `sample/README.md`에 있다.
 
 ## 결과 뷰
 
