@@ -34,8 +34,7 @@ dependencies {
 journeys {
     agentCommand.set(
         providers.gradleProperty("journeyAgentCommand").orElse(
-            "codex exec --ephemeral --sandbox workspace-write " +
-                "-c 'sandbox_workspace_write.network_access=true'",
+            "claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p",
         ),
     )
     timeoutSeconds.set(300)
