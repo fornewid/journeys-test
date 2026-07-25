@@ -44,7 +44,9 @@ journeys {
 
 - Claude Code: `claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p`
 - Codex: `codex exec --ephemeral --sandbox workspace-write -c 'sandbox_workspace_write.network_access=true'`
-- Antigravity: `agy -p`
+- Antigravity: `agy --dangerously-skip-permissions --print-timeout 20m -p`
+
+세 예시 모두 프롬프트를 받는 플래그로 끝난다. 앞 옵션이 프롬프트를 삼키지 않게 하기 위해서다. 기기를 조작할 권한도 함께 준다. Antigravity의 `--print-timeout`은 기본이 5분이니 `timeoutSeconds`보다 크게 잡는다. 그러지 않으면 플러그인보다 에이전트가 먼저 포기해 verdict가 출력되지 않는다.
 
 내장 프롬프트를 직접 바꾸고 싶으면 `prompt`로 덮어쓴다. 그 안의 `{journey}`가 journey 파일의 절대경로로 치환된다.
 
@@ -75,7 +77,7 @@ Android 에뮬레이터를 실행하거나 기기를 연결한 뒤, 오프라인
 ./gradlew :sample:journeysTest
 ```
 
-태스크가 샘플 APK를 빌드·설치하고 Codex가 온보딩부터 기사 상세까지 journey를 수행한다.
+태스크가 샘플 APK를 빌드·설치하고 Claude Code가 온보딩부터 기사 상세까지 journey를 수행한다.
 `-PjourneyAgentCommand=...`으로 에이전트를 바꿀 수 있으며 Claude 명령은 `sample/README.md`에 있다.
 
 ## 결과 뷰

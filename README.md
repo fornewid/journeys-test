@@ -44,7 +44,12 @@ Any agent with a headless mode works; just change this value.
 
 - Claude Code: `claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p`
 - Codex: `codex exec --ephemeral --sandbox workspace-write -c 'sandbox_workspace_write.network_access=true'`
-- Antigravity: `agy -p`
+- Antigravity: `agy --dangerously-skip-permissions --print-timeout 20m -p`
+
+Each example ends with the flag that takes the prompt, so the plugin's prompt is not swallowed by a
+preceding option, and grants the agent enough permission to drive the device. Note Antigravity's
+`--print-timeout` defaults to 5 minutes: keep it above `timeoutSeconds`, or the agent gives up
+before the plugin does and no verdict is printed.
 
 To customize the built-in prompt, override `prompt`; its `{journey}` is replaced with the journey file's absolute path.
 
@@ -75,7 +80,7 @@ Start an Android emulator or connect a device, then run the compact offline Comp
 ./gradlew :sample:journeysTest
 ```
 
-The task builds and installs the sample APK, then Codex runs the onboarding-to-article journey.
+The task builds and installs the sample APK, then Claude Code runs the onboarding-to-article journey.
 Override the agent with `-PjourneyAgentCommand=...`; see `sample/README.md` for the Claude command.
 
 ## Result view
