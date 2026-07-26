@@ -32,6 +32,7 @@ class JourneysPlugin : Plugin<Project> {
                 outputDir.convention(project.layout.buildDirectory.dir(JourneyConfig.DEFAULT_OUTPUT_DIR))
                 reportsDir.convention(project.layout.buildDirectory.dir(JourneyConfig.DEFAULT_REPORTS_DIR))
                 timeoutSeconds.convention(JourneyConfig.DEFAULT_TIMEOUT_SECONDS)
+                deviceWaitSeconds.convention(JourneyConfig.DEFAULT_DEVICE_WAIT_SECONDS)
             }
         val draftsDir = ext.outputDir.dir(JourneyConfig.DRAFTS_DIR)
 
@@ -53,6 +54,7 @@ class JourneysPlugin : Plugin<Project> {
             task.agentCommand.set(ext.agentCommand)
             task.prompt.set(ext.prompt)
             task.timeoutSeconds.set(ext.timeoutSeconds)
+            task.deviceWaitSeconds.set(ext.deviceWaitSeconds)
             task.journeysDir.set(ext.journeysDir)
             task.draftsDir.set(draftsDir)
             task.outputDir.set(ext.outputDir)
@@ -66,6 +68,7 @@ class JourneysPlugin : Plugin<Project> {
             task.usesService(deviceLock)
             task.agentCommand.set(ext.agentCommand)
             task.timeoutSeconds.set(ext.timeoutSeconds)
+            task.deviceWaitSeconds.set(ext.deviceWaitSeconds)
             task.journeysDir.set(ext.journeysDir)
             task.draftsDir.set(draftsDir)
             task.outputDir.set(ext.outputDir)

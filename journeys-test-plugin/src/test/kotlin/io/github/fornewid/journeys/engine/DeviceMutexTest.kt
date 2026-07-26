@@ -96,6 +96,21 @@ class DeviceMutexTest {
     }
 
     @Test
+    fun `queueing can be capped, and says the device was busy rather than stuck`() {
+        // The same busy neighbour as above, for a build that would rather fail than keep queueing.
+        val holder = holdFromAnotherProcess(holdMillis = 800, turns = 6)
+
+        val failure =
+            assertThrows<IllegalStateException> {
+                DeviceMutex.withDevice(timeoutSeconds = 30, maxWaitSeconds = 1) { error("should never run") }
+            }
+
+        // Deleting the lock file is the wrong advice here: someone really is using the device.
+        assertTrue(failure.message.orEmpty().contains("Other builds kept using it"), failure.message)
+        holder.destroyForcibly()
+    }
+
+    @Test
     fun `the device is free again once the block returns`() {
         repeat(2) { assertEquals(it, DeviceMutex.withDevice(timeoutSeconds = 5) { it }) }
     }

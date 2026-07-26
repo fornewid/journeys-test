@@ -34,6 +34,8 @@ data class JourneyConfig(
     val agentCommand: String? = null,
     val prompt: String = DEFAULT_PROMPT,
     val timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS,
+    /** How long to queue behind other builds using the device before giving up. */
+    val deviceWaitSeconds: Long = DEFAULT_DEVICE_WAIT_SECONDS,
 ) {
     /** Key/value pairs to put on the discovery request; the engine reads them back with [from]. */
     fun toParameters(): Map<String, String> =
@@ -45,6 +47,7 @@ data class JourneyConfig(
             agentCommand?.let { put(KEY_AGENT_COMMAND, it) }
             put(KEY_PROMPT, prompt)
             put(KEY_TIMEOUT_SECONDS, timeoutSeconds.toString())
+            put(KEY_DEVICE_WAIT_SECONDS, deviceWaitSeconds.toString())
         }
 
     companion object {
@@ -52,6 +55,16 @@ data class JourneyConfig(
         const val DEFAULT_OUTPUT_DIR = "journeys"
         const val DEFAULT_REPORTS_DIR = "journey-results"
         const val DEFAULT_TIMEOUT_SECONDS = 900L
+
+        /**
+         * How long a build queues behind others using the device, an hour by default.
+         *
+         * Higher than [DEFAULT_TIMEOUT_SECONDS] on purpose: a neighbour running several
+         * journeys legitimately keeps the device for far longer than one journey, and giving up
+         * on that would fail a build that only had to wait. Lower it to fail fast instead of
+         * queueing.
+         */
+        const val DEFAULT_DEVICE_WAIT_SECONDS = 3600L
         const val JOURNEY_FILE_SUFFIX = ".journey.xml"
 
         /** Under [DEFAULT_OUTPUT_DIR]: agent-written drafts, deliberately outside the journeys source dir. */
@@ -74,6 +87,7 @@ data class JourneyConfig(
         const val KEY_AGENT_COMMAND = "journeys.agent.cmd"
         const val KEY_PROMPT = "journeys.agent.prompt"
         const val KEY_TIMEOUT_SECONDS = "journeys.agent.timeoutSec"
+        const val KEY_DEVICE_WAIT_SECONDS = "journeys.device.waitSec"
 
         /** Instruction appended to the agent command; [JOURNEY_PLACEHOLDER] is the file's absolute path. */
         const val DEFAULT_PROMPT: String =
@@ -111,6 +125,7 @@ data class JourneyConfig(
                 agentCommand = get(KEY_AGENT_COMMAND),
                 prompt = get(KEY_PROMPT) ?: DEFAULT_PROMPT,
                 timeoutSeconds = get(KEY_TIMEOUT_SECONDS)?.toLongOrNull() ?: DEFAULT_TIMEOUT_SECONDS,
+                deviceWaitSeconds = get(KEY_DEVICE_WAIT_SECONDS)?.toLongOrNull() ?: DEFAULT_DEVICE_WAIT_SECONDS,
             )
         }
     }

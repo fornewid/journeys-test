@@ -84,6 +84,7 @@ internal object AgentProcess {
         // claimed — for builds elsewhere on the machine as well as tasks in this one.
         return DeviceMutex.withDevice(
             timeoutSeconds = config.timeoutSeconds,
+            maxWaitSeconds = config.deviceWaitSeconds,
             onWait = { lockFile, waited, holder ->
                 System.err.println(
                     if (waited == 0L) {

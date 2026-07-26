@@ -33,6 +33,9 @@ abstract class JourneysTestTask : DefaultTask() {
     @get:Input
     abstract val timeoutSeconds: Property<Long>
 
+    @get:Input
+    abstract val deviceWaitSeconds: Property<Long>
+
     /** Run only this journey: its path under the journeys dir, without the `.journey.xml` suffix. */
     @get:Input
     @get:Optional
@@ -75,6 +78,7 @@ abstract class JourneysTestTask : DefaultTask() {
                     agentCommand = agentCommand.orNull,
                     prompt = prompt.get(),
                     timeoutSeconds = timeoutSeconds.get(),
+                    deviceWaitSeconds = deviceWaitSeconds.get(),
                 ),
                 journeyFilter = journey.orNull,
             )

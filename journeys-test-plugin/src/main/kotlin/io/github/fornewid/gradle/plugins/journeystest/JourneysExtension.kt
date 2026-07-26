@@ -30,4 +30,11 @@ abstract class JourneysExtension {
 
     /** Agent timeout in seconds. Default 900. */
     abstract val timeoutSeconds: Property<Long>
+
+    /**
+     * How long to queue behind other builds using the device before failing, in seconds.
+     * Default 3600, well above `timeoutSeconds` so a neighbour's run is waited out rather than
+     * mistaken for a hang. Lower it to fail fast instead of queueing.
+     */
+    abstract val deviceWaitSeconds: Property<Long>
 }

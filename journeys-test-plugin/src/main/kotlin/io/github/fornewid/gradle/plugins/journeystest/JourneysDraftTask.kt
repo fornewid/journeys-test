@@ -28,6 +28,9 @@ abstract class JourneysDraftTask : DefaultTask() {
     @get:Input
     abstract val timeoutSeconds: Property<Long>
 
+    @get:Input
+    abstract val deviceWaitSeconds: Property<Long>
+
     /** Draft for a change described in prose, when the code is not written yet. */
     @get:Input
     @get:Optional
@@ -74,6 +77,7 @@ abstract class JourneysDraftTask : DefaultTask() {
                         workingDir = workingDir.get().asFile,
                         agentCommand = agentCommand.orNull,
                         timeoutSeconds = timeoutSeconds.get(),
+                        deviceWaitSeconds = deviceWaitSeconds.get(),
                     ),
                 draftsDir = drafts,
                 scope = scope(),

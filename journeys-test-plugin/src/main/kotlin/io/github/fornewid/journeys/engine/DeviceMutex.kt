@@ -28,11 +28,13 @@ internal object DeviceMutex {
      *
      * @param timeoutSeconds how long to wait without anyone letting go of the device. A neighbour
      *   working through several journeys keeps renewing this, so it only runs out on a stuck agent.
+     * @param maxWaitSeconds how long to queue behind other builds in total, however busy they are.
      * @param onWait called when the device turns out to be taken and every [NOTICE_SECONDS] after,
      *   with how long the wait has run and who is holding it, so it never looks like a hang.
      */
     fun <T> withDevice(
         timeoutSeconds: Long,
+        maxWaitSeconds: Long = Long.MAX_VALUE,
         onWait: (lockFile: File, waitedSeconds: Long, holder: String) -> Unit = { _, _, _ -> },
         block: () -> T,
     ): T {
@@ -40,7 +42,7 @@ internal object DeviceMutex {
         inProcess.lock()
         try {
             open(lockFile).use { file ->
-                val lock = file.acquire(lockFile, timeoutSeconds, onWait)
+                val lock = file.acquire(lockFile, timeoutSeconds, maxWaitSeconds, onWait)
                 try {
                     return block()
                 } finally {
@@ -61,20 +63,22 @@ internal object DeviceMutex {
      * perfectly well itself. A turn that never ends, on the other hand, means an agent outlived the
      * timeout that was supposed to kill it.
      *
-     * So a queue of busy neighbours is waited out however long it takes, the way Gradle waits for
-     * its own locks. What keeps that from looking like a hang is [onWait], which keeps saying who
-     * has the device and for how long.
+     * A queue of busy neighbours is otherwise waited out until [maxWaitSeconds], which is about
+     * being willing to queue rather than about anything being wrong — the two give different
+     * advice when they run out. What keeps the waiting from looking like a hang is [onWait], which
+     * keeps saying who has the device and for how long.
      */
     private fun RandomAccessFile.acquire(
         lockFile: File,
         timeoutSeconds: Long,
+        maxWaitSeconds: Long,
         onWait: (File, Long, String) -> Unit,
     ): FileLock {
         channel.tryLock()?.let { lock -> return lock.also { stamp() } }
 
         val startedAt = System.nanoTime()
         var holder = holder()
-        var deadline = startedAt + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+        var stallDeadline = startedAt + TimeUnit.SECONDS.toNanos(timeoutSeconds)
         var nextNotice = 0L
         while (true) {
             val waited = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startedAt)
@@ -87,11 +91,18 @@ internal object DeviceMutex {
             val current = holder()
             if (current != holder) {
                 holder = current
-                deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+                stallDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
             }
-            check(System.nanoTime() < deadline) {
+            check(System.nanoTime() < stallDeadline) {
                 "no build has let go of the device for ${timeoutSeconds}s (held by $holder). " +
                     "Stop it, or delete $lockFile if nothing is running."
+            }
+            // Compared as elapsed rather than against a deadline, so a very large limit cannot
+            // overflow into the past.
+            check(System.nanoTime() - startedAt < TimeUnit.SECONDS.toNanos(maxWaitSeconds)) {
+                "gave up after queueing ${maxWaitSeconds}s for the device (now held by $holder). " +
+                    "Other builds kept using it, so nothing is stuck — raise deviceWaitSeconds to " +
+                    "wait longer."
             }
         }
     }
