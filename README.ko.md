@@ -69,6 +69,27 @@ journeys {
 {"journey":"...","results":[{"action":"...","status":"PASSED","reasoning":"...","artifacts":["shots/01.png"]}]}
 ```
 
+## 초안 만들기
+
+첫 초안을 직접 쓰는 대신, 방금 바꾼 것에 대한 journey를 에이전트가 제안하게 할 수 있다.
+
+```bash
+./gradlew journeysDraft                            # 워킹 트리 변경분 기준
+./gradlew journeysDraft --since=main               # 특정 ref와의 diff 기준
+./gradlew journeysDraft --about="검색 필터"          # 코드가 아직 없을 때
+./gradlew journeysDraft --explore                  # 화면마다 스모크 journey 하나씩
+```
+
+초안은 `src/journeysTest`가 아니라 `build/journeys/drafts`에 쌓인다. 그래서 `journeysTest`가 실수로 주워가는 일이 없고, 검토하지 않은 초안이 CI까지 흘러가지 않는다. 검토한 뒤 승격한다.
+
+```bash
+./gradlew journeysDraftList                        # 대기 중인 초안과 마지막 실행 결과
+./gradlew journeysTest --drafts                    # 초안을 그 자리에서 실행
+./gradlew journeysDraftPromote --draft=login       # 하나를 src/journeysTest로 옮김
+```
+
+초안은 제품의 의도를 모르고도 관찰할 수 있는 것만 단정한다 — 화면이 열린다, 요소가 있다, 크래시하거나 멈추지 않는다. 비즈니스 규칙이나 계산값, 정렬 순서는 승격하는 사람이 채운다. 이 구분은 의도적이다. 자동 탐색이 세울 수 있는 것은 암묵적 오라클뿐이라, 기능적 정확성을 단정하는 초안은 추측이 된다.
+
 ## 샘플
 
 Android 에뮬레이터를 실행하거나 기기를 연결한 뒤, 오프라인 단일 Compose 샘플을 실행한다.

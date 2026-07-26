@@ -72,6 +72,32 @@ The plugin holds no judgment logic; the agent named by `agentCommand` is the bra
 {"journey":"...","results":[{"action":"...","status":"PASSED","reasoning":"...","artifacts":["shots/01.png"]}]}
 ```
 
+## Drafting journeys
+
+Let the agent propose journeys for whatever you just changed, instead of writing the first draft
+yourself:
+
+```bash
+./gradlew journeysDraft                            # from the working tree diff
+./gradlew journeysDraft --since=main               # from a diff against a ref
+./gradlew journeysDraft --about="search filter"    # before the code exists
+./gradlew journeysDraft --explore                  # one smoke journey per screen
+```
+
+Drafts land in `build/journeys/drafts`, never in `src/journeysTest`, so `journeysTest` cannot pick
+them up by accident and nothing unreviewed reaches CI. Review them, then promote:
+
+```bash
+./gradlew journeysDraftList                        # what is waiting, and how it last did
+./gradlew journeysTest --drafts                    # run them where they are
+./gradlew journeysDraftPromote --draft=login       # move one into src/journeysTest
+```
+
+A draft only asserts what can be observed without knowing your product: a screen opens, an element
+is present, nothing crashed or hung. Business rules, computed values and ordering are yours to add
+when you promote one. That split is deliberate — automated exploration establishes only implicit
+oracles, so a draft that claimed functional correctness would be guessing.
+
 ## Sample
 
 Start an Android emulator or connect a device, then run the compact offline Compose sample:

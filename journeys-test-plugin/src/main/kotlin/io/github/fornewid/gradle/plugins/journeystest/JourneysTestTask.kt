@@ -39,8 +39,17 @@ abstract class JourneysTestTask : DefaultTask() {
     @get:Option(option = "journey", description = "Run only this journey (path under the journeys dir, without .journey.xml)")
     abstract val journey: Property<String>
 
+    /** Run the drafts in `build/journeys/drafts` instead of the journeys source directory. */
+    @get:Input
+    @get:Optional
+    @get:Option(option = "drafts", description = "Run the drafts in build/journeys/drafts instead of the committed journeys")
+    abstract val drafts: Property<Boolean>
+
     @get:Internal
     abstract val journeysDir: DirectoryProperty
+
+    @get:Internal
+    abstract val draftsDir: DirectoryProperty
 
     @get:Internal
     abstract val outputDir: DirectoryProperty
@@ -59,7 +68,7 @@ abstract class JourneysTestTask : DefaultTask() {
         val failures =
             JourneyLauncher.run(
                 JourneyConfig(
-                    journeysDir = journeysDir.get().asFile,
+                    journeysDir = if (drafts.getOrElse(false)) draftsDir.get().asFile else journeysDir.get().asFile,
                     outputDir = output,
                     reportsDir = reports,
                     workingDir = workingDir.get().asFile,

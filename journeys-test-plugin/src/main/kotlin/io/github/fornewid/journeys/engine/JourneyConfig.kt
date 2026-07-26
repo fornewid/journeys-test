@@ -54,6 +54,9 @@ data class JourneyConfig(
         const val DEFAULT_TIMEOUT_SECONDS = 900L
         const val JOURNEY_FILE_SUFFIX = ".journey.xml"
 
+        /** Under [DEFAULT_OUTPUT_DIR]: agent-written drafts, deliberately outside the journeys source dir. */
+        const val DRAFTS_DIR = "drafts"
+
         /** Replaced with the journey file's absolute path, in both the prompt and the agent command. */
         const val JOURNEY_PLACEHOLDER = "{journey}"
 
