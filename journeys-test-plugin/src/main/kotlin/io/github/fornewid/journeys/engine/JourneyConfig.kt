@@ -106,7 +106,9 @@ data class JourneyConfig(
         const val DEFAULT_PROMPT: String =
             "Read the journey at $JOURNEY_PLACEHOLDER and run each <action> in order on the connected " +
                 "Android device. Use the android layout and android screen capture commands to inspect " +
-                "the screen, and adb to tap, type, and swipe. Actions that start with check or verify " +
+                "the screen, and adb to tap, type, and swipe. The android CLI ships for macOS on " +
+                "Apple silicon only, so where it is missing use adb shell uiautomator dump and adb " +
+                "exec-out screencap instead of hunting for it. Actions that start with check or verify " +
                 "only inspect the current screen. Judge each action PASSED or FAILED, and stop at the " +
                 "first FAILED. Save a screenshot for each action. Then print only the verdict as JSON " +
                 "between the markers $MARKER_START and $MARKER_END, with fields journey and results, " +

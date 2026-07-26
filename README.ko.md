@@ -58,7 +58,7 @@ journeys {
 
 세 예시 모두 프롬프트를 받는 플래그로 끝난다. 앞 옵션이 프롬프트를 삼키지 않게 하기 위해서다. 기기를 조작할 권한도 함께 준다. Antigravity의 `--print-timeout`은 기본이 5분으로 `timeoutSeconds`와 같으니 그보다 크게 잡는다. 그러지 않으면 플러그인보다 에이전트가 먼저 포기해 verdict가 출력되지 않는다.
 
-내장 프롬프트를 직접 바꾸고 싶으면 `prompt`로 덮어쓴다. 그 안의 `{journey}`가 journey 파일의 절대경로로 치환된다.
+내장 프롬프트는 화면을 읽을 때 Google의 `android` CLI를 먼저 쓴다. 이 CLI는 macOS Apple Silicon 빌드만 배포되므로(`dl.google.com/android/cli/latest/darwin_arm64`), 없는 환경에서는 `adb`로 대신하라고 프롬프트에 적혀 있다. Linux CI가 여기 해당한다. 프롬프트를 직접 바꾸고 싶으면 `prompt`로 덮어쓴다. 그 안의 `{journey}`가 journey 파일의 절대경로로 치환된다.
 
 ## 실행
 

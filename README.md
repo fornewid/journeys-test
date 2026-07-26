@@ -61,7 +61,10 @@ preceding option, and grants the agent enough permission to drive the device. No
 `--print-timeout` defaults to 5 minutes, the same as `timeoutSeconds`: keep it above that, or
 the agent gives up before the plugin does and no verdict is printed.
 
-To customize the built-in prompt, override `prompt`; its `{journey}` is replaced with the journey file's absolute path.
+The built-in prompt reaches for Google's `android` CLI to read the screen, which ships for macOS on
+Apple silicon only (`dl.google.com/android/cli/latest/darwin_arm64`), so it tells the agent to fall
+back to `adb` where that is missing — Linux CI included. To customize the prompt, override `prompt`;
+its `{journey}` is replaced with the journey file's absolute path.
 
 ## Run
 
