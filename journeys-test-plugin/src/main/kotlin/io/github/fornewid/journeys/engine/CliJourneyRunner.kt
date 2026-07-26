@@ -31,6 +31,7 @@ object CliJourneyRunner {
                 config = config,
                 prompt = config.prompt.replace(JourneyConfig.JOURNEY_PLACEHOLDER, path),
                 logName = key,
+                timeoutSeconds = config.timeoutSeconds,
                 journeyPath = path,
             )
 

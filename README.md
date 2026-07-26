@@ -84,6 +84,11 @@ yourself:
 ./gradlew journeysDraft --explore                  # one smoke journey per screen
 ```
 
+Drafting gets its own budget, `draftTimeoutSeconds` (default 1200s), because it is not a journey:
+reading a diff takes a couple of minutes, while `--explore` walks the app screen by screen and
+grows with it. Whatever the agent wrote is kept even if it runs out, with a note that the set may
+be incomplete.
+
 Drafts land in `build/journeys/drafts`, never in `src/journeysTest`, so `journeysTest` cannot pick
 them up by accident and nothing unreviewed reaches CI. Review them, then promote:
 

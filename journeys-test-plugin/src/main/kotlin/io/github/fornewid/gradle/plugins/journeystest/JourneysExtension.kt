@@ -32,6 +32,12 @@ abstract class JourneysExtension {
     abstract val timeoutSeconds: Property<Long>
 
     /**
+     * Budget for one `journeysDraft` run, in seconds. Default 1200, far above `timeoutSeconds`
+     * because `--explore` walks the whole app rather than running a single journey.
+     */
+    abstract val draftTimeoutSeconds: Property<Long>
+
+    /**
      * How long to queue behind other builds using the device before failing, in seconds.
      * Default 600, above `timeoutSeconds` so a neighbour is never given up on mid-journey.
      */

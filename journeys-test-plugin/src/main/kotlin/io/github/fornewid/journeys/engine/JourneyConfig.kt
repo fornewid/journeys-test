@@ -34,6 +34,8 @@ data class JourneyConfig(
     val agentCommand: String? = null,
     val prompt: String = DEFAULT_PROMPT,
     val timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS,
+    /** Budget for one drafting run, which is a different job from running a journey. */
+    val draftTimeoutSeconds: Long = DEFAULT_DRAFT_TIMEOUT_SECONDS,
     /** How long to queue behind other builds using the device before giving up. */
     val deviceWaitSeconds: Long = DEFAULT_DEVICE_WAIT_SECONDS,
 ) {
@@ -47,6 +49,7 @@ data class JourneyConfig(
             agentCommand?.let { put(KEY_AGENT_COMMAND, it) }
             put(KEY_PROMPT, prompt)
             put(KEY_TIMEOUT_SECONDS, timeoutSeconds.toString())
+            put(KEY_DRAFT_TIMEOUT_SECONDS, draftTimeoutSeconds.toString())
             put(KEY_DEVICE_WAIT_SECONDS, deviceWaitSeconds.toString())
         }
 
@@ -55,6 +58,15 @@ data class JourneyConfig(
         const val DEFAULT_OUTPUT_DIR = "journeys"
         const val DEFAULT_REPORTS_DIR = "journey-results"
         const val DEFAULT_TIMEOUT_SECONDS = 300L
+
+        /**
+         * Budget for one drafting run, twenty minutes by default.
+         *
+         * Much larger than [DEFAULT_TIMEOUT_SECONDS] because drafting is not a journey: reading a
+         * diff takes a couple of minutes, but `--explore` walks the app screen by screen, which
+         * took nearly five minutes on a three-screen sample and grows with the app.
+         */
+        const val DEFAULT_DRAFT_TIMEOUT_SECONDS = 1200L
 
         /**
          * How long a build queues behind others using the device, ten minutes by default.
@@ -87,6 +99,7 @@ data class JourneyConfig(
         const val KEY_AGENT_COMMAND = "journeys.agent.cmd"
         const val KEY_PROMPT = "journeys.agent.prompt"
         const val KEY_TIMEOUT_SECONDS = "journeys.agent.timeoutSec"
+        const val KEY_DRAFT_TIMEOUT_SECONDS = "journeys.draft.timeoutSec"
         const val KEY_DEVICE_WAIT_SECONDS = "journeys.device.waitSec"
 
         /** Instruction appended to the agent command; [JOURNEY_PLACEHOLDER] is the file's absolute path. */
@@ -125,6 +138,8 @@ data class JourneyConfig(
                 agentCommand = get(KEY_AGENT_COMMAND),
                 prompt = get(KEY_PROMPT) ?: DEFAULT_PROMPT,
                 timeoutSeconds = get(KEY_TIMEOUT_SECONDS)?.toLongOrNull() ?: DEFAULT_TIMEOUT_SECONDS,
+                draftTimeoutSeconds =
+                    get(KEY_DRAFT_TIMEOUT_SECONDS)?.toLongOrNull() ?: DEFAULT_DRAFT_TIMEOUT_SECONDS,
                 deviceWaitSeconds = get(KEY_DEVICE_WAIT_SECONDS)?.toLongOrNull() ?: DEFAULT_DEVICE_WAIT_SECONDS,
             )
         }

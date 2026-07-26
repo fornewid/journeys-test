@@ -80,6 +80,8 @@ journeys {
 ./gradlew journeysDraft --explore                  # 화면마다 스모크 journey 하나씩
 ```
 
+초안 생성은 journey 실행과 작업량이 달라 별도 예산 `draftTimeoutSeconds`(기본 1200초)를 쓴다. diff를 읽는 데는 몇 분이면 되지만 `--explore`는 앱을 화면마다 돌아다니고 앱이 클수록 길어진다. 시간이 모자라 잘려도 그때까지 쓴 초안은 남기고, 전체가 아닐 수 있다고 알린다.
+
 초안은 `src/journeysTest`가 아니라 `build/journeys/drafts`에 쌓인다. 그래서 `journeysTest`가 실수로 주워가는 일이 없고, 검토하지 않은 초안이 CI까지 흘러가지 않는다. 검토한 뒤 승격한다.
 
 ```bash

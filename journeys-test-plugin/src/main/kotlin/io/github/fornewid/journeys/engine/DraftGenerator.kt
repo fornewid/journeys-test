@@ -2,6 +2,12 @@ package io.github.fornewid.journeys.engine
 
 import java.io.File
 
+/** The drafts a run produced, with [cutShort] set when the agent did not get to finish. */
+internal class DraftResult(
+    val created: List<File>,
+    val cutShort: String?,
+)
+
 /** What the agent is asked to draft journeys about. */
 sealed interface DraftScope {
     /** Journeys that reach whatever the working tree (or [since]..HEAD) changed. */
@@ -27,31 +33,47 @@ sealed interface DraftScope {
  * promoting the draft.
  */
 internal object DraftGenerator {
-    /** @return the drafts that appeared, in the order they were found. */
+    /** @return the drafts that appeared, and why the set may be incomplete. */
     fun generate(
         config: JourneyConfig,
         draftsDir: File,
         scope: DraftScope,
-    ): List<File> {
+    ): DraftResult {
         draftsDir.mkdirs()
         val before = draftsDir.journeyFiles()
 
-        val outcome = AgentProcess.run(config, prompt(draftsDir, scope), logName = "drafts/_generate")
+        val outcome =
+            AgentProcess.run(
+                config,
+                prompt(draftsDir, scope),
+                logName = "drafts/_generate",
+                timeoutSeconds = config.draftTimeoutSeconds,
+            )
 
+        // Drafts the agent managed to write are kept whichever way it ended: they are a starting
+        // point for a person, who is going to read them before promoting anything, and an agent
+        // that explored an app for twenty minutes and then ran out of time has still done the work.
         val created = draftsDir.journeyFiles() - before.toSet()
-        if (outcome.timedOut) {
-            error(
-                "agent did not finish within ${config.timeoutSeconds}s while drafting.\n" +
-                    "See ${outcome.log}\n--- last 2KB of output ---\n${outcome.tail()}",
-            )
+        if (created.isEmpty()) {
+            val reason =
+                if (outcome.timedOut) {
+                    "agent did not finish within ${config.draftTimeoutSeconds}s while drafting"
+                } else {
+                    "agent exited with code ${outcome.exitCode} and wrote no drafts"
+                }
+            error("$reason.\nSee ${outcome.log}\n--- last 2KB of output ---\n${outcome.tail()}")
         }
-        if (outcome.exitCode != 0 && created.isEmpty()) {
-            error(
-                "agent exited with code ${outcome.exitCode} and wrote no drafts.\n" +
-                    "See ${outcome.log}\n--- last 2KB of output ---\n${outcome.tail()}",
-            )
-        }
-        return created
+        val cutShort =
+            when {
+                outcome.timedOut ->
+                    "the agent ran out of its ${config.draftTimeoutSeconds}s budget, so this may not be " +
+                        "the whole set. Raise draftTimeoutSeconds to give it longer. See ${outcome.log}"
+                outcome.exitCode != 0 ->
+                    "the agent exited with code ${outcome.exitCode}, so this may not be the whole set. " +
+                        "See ${outcome.log}"
+                else -> null
+            }
+        return DraftResult(created, cutShort)
     }
 
     private fun File.journeyFiles(): List<File> =
@@ -79,8 +101,14 @@ internal object DraftGenerator {
                             "affected flow that reaches it from a cold start. "
                     }
                     DraftScope.Explore ->
-                        "Explore the app running on the connected device and write one short journey per " +
-                            "screen you can reach, each starting from a cold start. "
+                        // Naming the app is the whole job here. The other scopes read the project's
+                        // code and pick up its package on the way; this one has nothing to go on, and
+                        // a device usually has several apps installed — left to guess, it explores
+                        // whichever one happens to be on screen.
+                        "Find this project's application id in its Gradle files. Force-stop and " +
+                            "cold-launch that package on the connected device, and explore only that " +
+                            "app. Write one short journey per screen you can reach, each starting by " +
+                            "force-stopping and cold-launching that same package. "
                 },
             )
             append(

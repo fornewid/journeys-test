@@ -29,6 +29,9 @@ abstract class JourneysDraftTask : DefaultTask() {
     abstract val timeoutSeconds: Property<Long>
 
     @get:Input
+    abstract val draftTimeoutSeconds: Property<Long>
+
+    @get:Input
     abstract val deviceWaitSeconds: Property<Long>
 
     /** Draft for a change described in prose, when the code is not written yet. */
@@ -67,7 +70,7 @@ abstract class JourneysDraftTask : DefaultTask() {
     @TaskAction
     fun draft() {
         val drafts = draftsDir.get().asFile
-        val created =
+        val result =
             DraftGenerator.generate(
                 config =
                     JourneyConfig(
@@ -77,18 +80,16 @@ abstract class JourneysDraftTask : DefaultTask() {
                         workingDir = workingDir.get().asFile,
                         agentCommand = agentCommand.orNull,
                         timeoutSeconds = timeoutSeconds.get(),
+                        draftTimeoutSeconds = draftTimeoutSeconds.get(),
                         deviceWaitSeconds = deviceWaitSeconds.get(),
                     ),
                 draftsDir = drafts,
                 scope = scope(),
             )
 
-        if (created.isEmpty()) {
-            logger.warn("No drafts were written to $drafts.")
-            return
-        }
-        logger.lifecycle("Drafted ${created.size} journey(s) in $drafts:")
-        created.forEach { logger.lifecycle("  ${it.toRelativeString(drafts)}") }
+        logger.lifecycle("Drafted ${result.created.size} journey(s) in $drafts:")
+        result.created.forEach { logger.lifecycle("  ${it.toRelativeString(drafts)}") }
+        result.cutShort?.let { logger.warn("Note: $it") }
         logger.lifecycle("Run them with: ./gradlew ${path.replace("Draft", "Test")} --drafts")
     }
 

@@ -52,6 +52,8 @@ internal object AgentProcess {
 
     /**
      * @param prompt sent to the agent as one quoted argument.
+     * @param timeoutSeconds how long this piece of work may take. Running a journey and exploring an
+     *   app to draft them are different jobs with their own limits, so the caller supplies it.
      * @param journeyPath substituted for [JourneyConfig.JOURNEY_PLACEHOLDER] in the agent command.
      * @param logName base name for the two log files written under the output directory.
      */
@@ -59,6 +61,7 @@ internal object AgentProcess {
         config: JourneyConfig,
         prompt: String,
         logName: String,
+        timeoutSeconds: Long,
         journeyPath: String? = null,
     ): AgentOutcome {
         val agentCommand =
@@ -83,7 +86,7 @@ internal object AgentProcess {
         // Every path that drives the device comes through here, so this is where the device is
         // claimed — for builds elsewhere on the machine as well as tasks in this one.
         return DeviceMutex.withDevice(
-            timeoutSeconds = config.timeoutSeconds,
+            timeoutSeconds = timeoutSeconds,
             maxWaitSeconds = config.deviceWaitSeconds,
             onWait = { lockFile, waited, holder ->
                 System.err.println(
@@ -103,7 +106,7 @@ internal object AgentProcess {
                     .start()
             process.outputStream.close() // the agent gets EOF instead of waiting on stdin
 
-            val finished = process.waitFor(config.timeoutSeconds, TimeUnit.SECONDS)
+            val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
             if (!finished) terminate(process)
             AgentOutcome(
                 exitCode = if (finished) process.exitValue() else -1,
