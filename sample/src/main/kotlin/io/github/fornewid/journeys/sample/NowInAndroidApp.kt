@@ -41,7 +41,7 @@ fun NowInAndroidApp() {
     var selectedTopic by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedArticleId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    BackHandler(enabled = destination == Destination.Article) {
+    BackHandler(enabled = false) {
         destination = Destination.Feed
         selectedArticleId = null
     }
