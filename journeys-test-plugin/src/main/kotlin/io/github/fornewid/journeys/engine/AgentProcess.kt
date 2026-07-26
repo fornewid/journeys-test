@@ -84,7 +84,15 @@ internal object AgentProcess {
         // claimed — for builds elsewhere on the machine as well as tasks in this one.
         return DeviceMutex.withDevice(
             timeoutSeconds = config.timeoutSeconds,
-            onWait = { System.err.println("Waiting for the device: another build is driving it ($it)") },
+            onWait = { lockFile, waited, holder ->
+                System.err.println(
+                    if (waited == 0L) {
+                        "Waiting for the device: another build is driving it ($lockFile)"
+                    } else {
+                        "Still waiting for the device after ${waited}s: $holder"
+                    },
+                )
+            },
         ) {
             val process =
                 ProcessBuilder("bash", "-c", processWrapper, "journeys-agent", command)

@@ -28,11 +28,12 @@ internal object DeviceMutex {
      *
      * @param timeoutSeconds how long to wait without anyone letting go of the device. A neighbour
      *   working through several journeys keeps renewing this, so it only runs out on a stuck agent.
-     * @param onWait called once if the device turns out to be taken, to explain the wait.
+     * @param onWait called when the device turns out to be taken and every [NOTICE_SECONDS] after,
+     *   with how long the wait has run and who is holding it, so it never looks like a hang.
      */
     fun <T> withDevice(
         timeoutSeconds: Long,
-        onWait: (File) -> Unit = {},
+        onWait: (lockFile: File, waitedSeconds: Long, holder: String) -> Unit = { _, _, _ -> },
         block: () -> T,
     ): T {
         val lockFile = lockFile()
@@ -59,18 +60,28 @@ internal object DeviceMutex {
      * journeys would otherwise starve everyone else out and fail their builds while working
      * perfectly well itself. A turn that never ends, on the other hand, means an agent outlived the
      * timeout that was supposed to kill it.
+     *
+     * So a queue of busy neighbours is waited out however long it takes, the way Gradle waits for
+     * its own locks. What keeps that from looking like a hang is [onWait], which keeps saying who
+     * has the device and for how long.
      */
     private fun RandomAccessFile.acquire(
         lockFile: File,
         timeoutSeconds: Long,
-        onWait: (File) -> Unit,
+        onWait: (File, Long, String) -> Unit,
     ): FileLock {
         channel.tryLock()?.let { lock -> return lock.also { stamp() } }
-        onWait(lockFile)
 
+        val startedAt = System.nanoTime()
         var holder = holder()
-        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+        var deadline = startedAt + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+        var nextNotice = 0L
         while (true) {
+            val waited = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startedAt)
+            if (waited >= nextNotice) {
+                onWait(lockFile, waited, holder)
+                nextNotice = waited + NOTICE_SECONDS
+            }
             Thread.sleep(POLL_MILLIS)
             channel.tryLock()?.let { lock -> return lock.also { stamp() } }
             val current = holder()
@@ -125,6 +136,9 @@ internal object DeviceMutex {
     const val LOCK_DIR_PROPERTY = "journeys.deviceLockDir"
 
     private const val POLL_MILLIS = 500L
+
+    /** How often a build that is waiting says so. Often enough to look alive, rare enough to skim. */
+    private const val NOTICE_SECONDS = 30L
     private const val MAX_STAMP_BYTES = 64
     private val UNSAFE = Regex("[^A-Za-z0-9._-]")
 }

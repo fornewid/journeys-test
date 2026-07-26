@@ -2,7 +2,6 @@ package io.github.fornewid.journeys.engine
 
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -33,14 +32,19 @@ class DeviceMutexTest {
     fun `another process holding the device makes this one wait for it`() {
         val holder = holdFromAnotherProcess(holdMillis = 2_000)
 
-        var waitedOn: File? = null
+        val notices = mutableListOf<String>()
         val startedAt = System.nanoTime()
         val acquiredAfter =
-            DeviceMutex.withDevice(timeoutSeconds = 30, onWait = { waitedOn = it }) {
+            DeviceMutex.withDevice(
+                timeoutSeconds = 30,
+                onWait = { lockFile, waited, holder -> notices += "$lockFile ${waited}s $holder" },
+            ) {
                 (System.nanoTime() - startedAt) / 1_000_000
             }
 
-        assertNotNull(waitedOn, "should have reported that it was waiting for the other build")
+        // Said who has the device, once — a few seconds of waiting must not turn into a stream.
+        assertEquals(1, notices.size, "expected one notice, got $notices")
+        assertTrue(notices.single().contains("pid "), "notice should name the holder: ${notices.single()}")
         assertTrue(
             acquiredAfter >= 1_000,
             "took the device after only ${acquiredAfter}ms, so it did not wait for the other process",
