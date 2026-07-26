@@ -61,6 +61,26 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
 
+      # publishPlugins reports success whether or not the version becomes available, and every
+      # release so far has been reported as published while the portal has none of them. Say so
+      # rather than let a green job stand in for a plugin people can install.
+      - name: Check the plugin reached the Gradle Plugin Portal
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ID=io.github.fornewid.journeys-test
+          MARKER="https://plugins.gradle.org/m2/${ID//.//}/$ID.gradle.plugin/$VERSION/$ID.gradle.plugin-$VERSION.pom"
+          # The portal answers 303 and redirects to wherever the artifact actually lives, so
+          # follow it and judge the final response.
+          for _ in $(seq 1 5); do
+            if [ "$(curl -sL -o /dev/null -w '%{http_code}' "$MARKER")" = 200 ]; then
+              echo "Gradle Plugin Portal has $VERSION"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::publishPlugins succeeded but $VERSION does not resolve from the Gradle Plugin Portal ($MARKER). A new plugin id stays invisible until Gradle approves it; until then people need mavenCentral() in pluginManagement, which is what the README documents."
+
       - name: Create git tag
         if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
         run: |
