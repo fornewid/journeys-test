@@ -1,7 +1,9 @@
 package io.github.fornewid.journeys.engine
 
 import java.io.File
+import java.io.IOException
 import java.io.RandomAccessFile
+import java.nio.channels.FileLock
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 
@@ -24,8 +26,8 @@ internal object DeviceMutex {
     /**
      * Holds the device for the duration of [block].
      *
-     * @param timeoutSeconds how long to wait for another build to let go. One agent run never holds
-     *   the lock longer than this, so exceeding it means the holder is stuck rather than busy.
+     * @param timeoutSeconds how long to wait without anyone letting go of the device. A neighbour
+     *   working through several journeys keeps renewing this, so it only runs out on a stuck agent.
      * @param onWait called once if the device turns out to be taken, to explain the wait.
      */
     fun <T> withDevice(
@@ -36,18 +38,8 @@ internal object DeviceMutex {
         val lockFile = lockFile()
         inProcess.lock()
         try {
-            RandomAccessFile(lockFile, "rw").use { file ->
-                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
-                var lock = file.channel.tryLock()
-                if (lock == null) onWait(lockFile)
-                while (lock == null) {
-                    check(System.nanoTime() < deadline) {
-                        "another build has been driving the device for more than ${timeoutSeconds}s. " +
-                            "Wait for it to finish, or delete $lockFile if nothing is running."
-                    }
-                    Thread.sleep(POLL_MILLIS)
-                    lock = file.channel.tryLock()
-                }
+            open(lockFile).use { file ->
+                val lock = file.acquire(lockFile, timeoutSeconds, onWait)
                 try {
                     return block()
                 } finally {
@@ -58,6 +50,68 @@ internal object DeviceMutex {
             inProcess.unlock()
         }
     }
+
+    /**
+     * Waits for the device, giving up only if nobody has taken a turn for [timeoutSeconds].
+     *
+     * The deadline tracks turns rather than total waiting because whoever holds the device releases
+     * it between journeys and usually wins the race to take it again — a build with several
+     * journeys would otherwise starve everyone else out and fail their builds while working
+     * perfectly well itself. A turn that never ends, on the other hand, means an agent outlived the
+     * timeout that was supposed to kill it.
+     */
+    private fun RandomAccessFile.acquire(
+        lockFile: File,
+        timeoutSeconds: Long,
+        onWait: (File) -> Unit,
+    ): FileLock {
+        channel.tryLock()?.let { lock -> return lock.also { stamp() } }
+        onWait(lockFile)
+
+        var holder = holder()
+        var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+        while (true) {
+            Thread.sleep(POLL_MILLIS)
+            channel.tryLock()?.let { lock -> return lock.also { stamp() } }
+            val current = holder()
+            if (current != holder) {
+                holder = current
+                deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds)
+            }
+            check(System.nanoTime() < deadline) {
+                "no build has let go of the device for ${timeoutSeconds}s (held by $holder). " +
+                    "Stop it, or delete $lockFile if nothing is running."
+            }
+        }
+    }
+
+    /** Marks this turn, so anyone waiting can tell a busy neighbour from a stuck one. */
+    private fun RandomAccessFile.stamp() {
+        setLength(0)
+        seek(0)
+        write("pid ${ProcessHandle.current().pid()} since ${System.currentTimeMillis()}".toByteArray())
+    }
+
+    private fun RandomAccessFile.holder(): String =
+        try {
+            seek(0)
+            ByteArray(length().toInt().coerceAtMost(MAX_STAMP_BYTES))
+                .also { readFully(it) }
+                .decodeToString()
+        } catch (_: IOException) {
+            "" // mid-write, or not stamped yet; the next poll sees it
+        }
+
+    private fun open(lockFile: File): RandomAccessFile =
+        try {
+            RandomAccessFile(lockFile, "rw")
+        } catch (e: IOException) {
+            throw IllegalStateException(
+                "cannot claim the device: $lockFile is not writable. " +
+                    "Set -D$LOCK_DIR_PROPERTY to a directory this build can write to.",
+                e,
+            )
+        }
 
     private fun lockFile(): File {
         val serial = System.getenv("ANDROID_SERIAL")?.takeIf { it.isNotBlank() } ?: "default"
@@ -71,5 +125,6 @@ internal object DeviceMutex {
     const val LOCK_DIR_PROPERTY = "journeys.deviceLockDir"
 
     private const val POLL_MILLIS = 500L
+    private const val MAX_STAMP_BYTES = 64
     private val UNSAFE = Regex("[^A-Za-z0-9._-]")
 }

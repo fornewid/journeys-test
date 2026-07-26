@@ -65,6 +65,33 @@ class DeviceMutexTest {
     }
 
     @Test
+    fun `killing a build releases the device`() {
+        // The whole reason for an OS lock rather than a file someone has to delete: SIGKILL leaves
+        // no chance to clean up, so if the kernel did not release it the device would be locked out
+        // until a human noticed.
+        val holder = holdFromAnotherProcess(holdMillis = 60_000)
+        holder.destroyForcibly().waitFor()
+
+        val startedAt = System.nanoTime()
+        val acquiredAfter =
+            DeviceMutex.withDevice(timeoutSeconds = 5) { (System.nanoTime() - startedAt) / 1_000_000 }
+
+        assertTrue(acquiredAfter < 1_000, "waited ${acquiredAfter}ms for a device nobody was holding")
+    }
+
+    @Test
+    fun `a neighbour working through several journeys does not time this one out`() {
+        // Each journey takes the device and gives it back, and whoever holds it usually wins the
+        // race to take it again — so a waiting build has to tell a busy neighbour from a stuck one,
+        // or a long run next door would fail perfectly good builds.
+        val holder = holdFromAnotherProcess(holdMillis = 800, turns = 6)
+
+        DeviceMutex.withDevice(timeoutSeconds = 1) {}
+
+        assertEquals(0, holder.waitFor())
+    }
+
+    @Test
     fun `the device is free again once the block returns`() {
         repeat(2) { assertEquals(it, DeviceMutex.withDevice(timeoutSeconds = 5) { it }) }
     }
@@ -86,6 +113,7 @@ class DeviceMutexTest {
     /** @return the still-running holder, once it actually has the device. */
     private fun holdFromAnotherProcess(
         holdMillis: Long,
+        turns: Int = 1,
         serial: String? = null,
     ): Process {
         val marker = File(lockDir, "held")
@@ -98,6 +126,7 @@ class DeviceMutexTest {
                 DeviceLockHolder::class.java.name,
                 marker.path,
                 holdMillis.toString(),
+                turns.toString(),
             ).inheritIO()
                 .apply { serial?.let { environment()["ANDROID_SERIAL"] = it } }
                 .start()
