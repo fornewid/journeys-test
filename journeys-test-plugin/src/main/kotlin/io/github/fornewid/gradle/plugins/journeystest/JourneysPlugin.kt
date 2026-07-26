@@ -36,7 +36,10 @@ class JourneysPlugin : Plugin<Project> {
         val draftsDir = ext.outputDir.dir(JourneyConfig.DRAFTS_DIR)
 
         // One connected device, so only one agent may drive it at a time — even when Gradle runs
-        // several projects' journey tasks in parallel.
+        // several projects' journey tasks in parallel. Any task added here that touches the device
+        // must declare usesService(deviceLock); the lease only constrains tasks that ask for it.
+        // journeysDraft takes the lease unconditionally: only --explore drives the device, but
+        // deciding that at configuration time from an option value would be fragile.
         val deviceLock =
             project.gradle.sharedServices.registerIfAbsent("journeysDeviceLock", DeviceLock::class.java) {
                 it.maxParallelUsages.set(1)
@@ -73,6 +76,8 @@ class JourneysPlugin : Plugin<Project> {
         project.tasks.register("journeysDraftList", JourneysDraftListTask::class.java) { task ->
             task.group = GROUP
             task.description = "Lists the drafts in build/journeys/drafts and how each one last did."
+            // Never read drafts while the agent is still writing them.
+            task.mustRunAfter("journeysDraft")
             task.draftsDir.set(draftsDir)
             task.outputDir.set(ext.outputDir)
         }
@@ -80,6 +85,7 @@ class JourneysPlugin : Plugin<Project> {
         project.tasks.register("journeysDraftPromote", JourneysDraftPromoteTask::class.java) { task ->
             task.group = GROUP
             task.description = "Moves a draft into src/journeysTest, turning it into a real journey."
+            task.mustRunAfter("journeysDraft")
             task.draftsDir.set(draftsDir)
             task.journeysDir.set(ext.journeysDir)
         }
