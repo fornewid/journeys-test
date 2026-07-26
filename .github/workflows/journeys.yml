@@ -29,24 +29,32 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # A journey needs an agent, and an agent needs credentials this repository does not
-      # have. So the emulator, the APK install, the task, the JUnit XML and its collection
-      # are all exercised for real, and only the judging is stubbed — the stub says so in
-      # every verdict it writes, so a report from this job cannot be mistaken for a tested
-      # app. Set the JOURNEY_AGENT_CMD secret to run the real thing instead.
+      # With ANTHROPIC_API_KEY set the agent runs for real and the journeys are worth
+      # something; without it only the judging is stubbed, and the stub says so in every
+      # verdict it writes, so a report from this job cannot be mistaken for a tested app.
+      # Either way the emulator, the install, the task and the report run for real.
+      # JOURNEY_AGENT_CMD overrides the command when the agent is not Claude Code.
       - name: Pick the agent
         id: agent
         env:
           AGENT: ${{ secrets.JOURNEY_AGENT_CMD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -n "$AGENT" ]; then
             echo "cmd=$AGENT" >> "$GITHUB_OUTPUT"
+          elif [ -n "$ANTHROPIC_API_KEY" ]; then
+            npm install -g @anthropic-ai/claude-code
+            # No android CLI on Linux — it ships for macOS on Apple silicon only — so the
+            # agent works through adb, which the built-in prompt tells it to do.
+            echo "cmd=claude --no-session-persistence --allowedTools 'Bash(adb *)' -p" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::No JOURNEY_AGENT_CMD secret. Running with the stub agent, which checks the plumbing but does not drive the app."
+            echo "::notice::No ANTHROPIC_API_KEY secret. Running with the stub agent, which checks the plumbing but does not drive the app."
             echo "cmd=bash $GITHUB_WORKSPACE/.github/stub-agent.sh" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           api-level: 34
           arch: x86_64
