@@ -32,8 +32,18 @@ Android Studio는 이 journey를 Google 백엔드로 실행한다. 이 플러그
 플러그인을 적용하고, 사용할 에이전트 CLI만 지정하면 된다. journey를 수행하는 프롬프트는 플러그인에 내장돼 있어(Android Studio Journeys와 같은 방식으로 각 action을 순서대로 수행하고 check/verify는 현재 화면만 검사하며 스텝마다 PASSED/FAILED를 판정한다), 플러그인이 이 명령 뒤에 알아서 덧붙인다.
 
 ```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
+```kotlin
 // build.gradle.kts
-plugins { id("io.github.fornewid.journeys-test") version "0.1.0" }
+plugins { id("io.github.fornewid.journeys-test") version "0.1.2" }
 
 journeys {
     agentCommand.set("claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p")

@@ -32,8 +32,18 @@ Android Studio runs the journey on Google's backend. This plugin swaps only the 
 Apply the plugin and set only the agent CLI you use. The prompt that carries the journeys protocol (run each action in order, check/verify inspect the current screen only, judge PASSED/FAILED, the same as Android Studio Journeys) is built into the plugin and appended to this command automatically.
 
 ```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
+```kotlin
 // build.gradle.kts
-plugins { id("io.github.fornewid.journeys-test") version "0.1.0" }
+plugins { id("io.github.fornewid.journeys-test") version "0.1.2" }
 
 journeys {
     agentCommand.set("claude --no-session-persistence --allowedTools 'Bash(android *)' 'Bash(adb *)' -p")
