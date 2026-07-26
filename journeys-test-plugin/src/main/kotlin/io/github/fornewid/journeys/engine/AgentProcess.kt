@@ -80,22 +80,29 @@ internal object AgentProcess {
         // race a reader that an inherited child is holding open.
         val log = config.outputDir.resolve("$logName.agent.log").apply { parentFile?.mkdirs() }
         val errorLog = config.outputDir.resolve("$logName.agent.err.log")
-        val process =
-            ProcessBuilder("bash", "-c", processWrapper, "journeys-agent", command)
-                .directory(config.workingDir)
-                .redirectOutput(log)
-                .redirectError(errorLog)
-                .start()
-        process.outputStream.close() // the agent gets EOF instead of waiting on stdin
+        // Every path that drives the device comes through here, so this is where the device is
+        // claimed — for builds elsewhere on the machine as well as tasks in this one.
+        return DeviceMutex.withDevice(
+            timeoutSeconds = config.timeoutSeconds,
+            onWait = { System.err.println("Waiting for the device: another build is driving it ($it)") },
+        ) {
+            val process =
+                ProcessBuilder("bash", "-c", processWrapper, "journeys-agent", command)
+                    .directory(config.workingDir)
+                    .redirectOutput(log)
+                    .redirectError(errorLog)
+                    .start()
+            process.outputStream.close() // the agent gets EOF instead of waiting on stdin
 
-        val finished = process.waitFor(config.timeoutSeconds, TimeUnit.SECONDS)
-        if (!finished) terminate(process)
-        return AgentOutcome(
-            exitCode = if (finished) process.exitValue() else -1,
-            timedOut = !finished,
-            log = log,
-            errorLog = errorLog,
-        )
+            val finished = process.waitFor(config.timeoutSeconds, TimeUnit.SECONDS)
+            if (!finished) terminate(process)
+            AgentOutcome(
+                exitCode = if (finished) process.exitValue() else -1,
+                timedOut = !finished,
+                log = log,
+                errorLog = errorLog,
+            )
+        }
     }
 
     private fun terminate(process: Process) {

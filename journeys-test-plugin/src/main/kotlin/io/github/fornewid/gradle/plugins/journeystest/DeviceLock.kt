@@ -11,5 +11,9 @@ import org.gradle.api.services.BuildServiceParameters
  * the same time, each backgrounding the other's app. Registering this service with
  * `maxParallelUsages = 1` and declaring it with `usesService` makes Gradle run them one after
  * another, without giving up parallelism for the rest of the build.
+ *
+ * This only reaches as far as Gradle's own scheduling. Builds started elsewhere on the machine —
+ * another terminal, another checkout, CI alongside a local run — are held off by the file lock in
+ * `DeviceMutex` instead, which the agent takes before it starts.
  */
 abstract class DeviceLock : BuildService<BuildServiceParameters.None>

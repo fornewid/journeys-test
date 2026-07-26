@@ -96,16 +96,14 @@ them up by accident and nothing unreviewed reaches CI. Review them, then promote
 A draft only asserts what can be observed without knowing your product: a screen opens, an element
 is present, nothing crashed or hung. Business rules, computed values and ordering are yours to add
 when you promote one. That split is deliberate — automated exploration establishes only implicit
-A draft only asserts what can be observed without knowing your product: a screen opens, an element
-is present, nothing crashed or hung. Business rules, computed values and ordering are yours to add
-when you promote one. That split is deliberate — automated exploration establishes only implicit
 oracles, so a draft that claimed functional correctness would be guessing.
 
 Journeys need the device to themselves. In a multi-module build Gradle would otherwise run two
 agents at once, each tapping while the other's app is on screen, so `journeysTest` and
-`journeysDraft` take a build-wide lease and run one at a time. That lease covers a single Gradle
-invocation, so don't drive the same device from two builds at once. One device is assumed: with
-several attached, set `ANDROID_SERIAL` for the agent.
+`journeysDraft` run one at a time — within a build, and between builds as well: start one in a
+second terminal, or from another checkout, and it waits its turn instead of fighting for the
+screen. One device is assumed; with several attached, set `ANDROID_SERIAL` per run and each device
+gets a turn of its own.
 
 ## Sample
 
