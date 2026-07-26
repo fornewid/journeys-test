@@ -57,14 +57,14 @@ data class JourneyConfig(
         const val DEFAULT_TIMEOUT_SECONDS = 900L
 
         /**
-         * How long a build queues behind others using the device, an hour by default.
+         * How long a build queues behind others using the device, ten minutes by default.
          *
-         * Higher than [DEFAULT_TIMEOUT_SECONDS] on purpose: a neighbour running several
-         * journeys legitimately keeps the device for far longer than one journey, and giving up
-         * on that would fail a build that only had to wait. Lower it to fail fast instead of
-         * queueing.
+         * This is a policy about how long a build should sit waiting, not a bound derived from how
+         * long a turn takes — and it is below [DEFAULT_TIMEOUT_SECONDS], so a neighbour running one
+         * journey for longer than this fails the waiting build even though nothing is wrong. Raise
+         * it where journeys run long, lower it to fail faster.
          */
-        const val DEFAULT_DEVICE_WAIT_SECONDS = 3600L
+        const val DEFAULT_DEVICE_WAIT_SECONDS = 600L
         const val JOURNEY_FILE_SUFFIX = ".journey.xml"
 
         /** Under [DEFAULT_OUTPUT_DIR]: agent-written drafts, deliberately outside the journeys source dir. */

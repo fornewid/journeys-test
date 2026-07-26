@@ -102,10 +102,10 @@ Journeys need the device to themselves. In a multi-module build Gradle would oth
 agents at once, each tapping while the other's app is on screen, so `journeysTest` and
 `journeysDraft` run one at a time — within a build, and between builds as well: start one in a
 second terminal, or from another checkout, and it waits its turn instead of fighting for the
-screen, reporting who has the device while it waits. It queues for an hour before giving up
-(`deviceWaitSeconds`); set that low to fail fast instead, but keep it above `timeoutSeconds` or a
-neighbour running one long journey is enough to fail the build. One device is assumed; with several
-attached, set `ANDROID_SERIAL` per run and each device gets a turn of its own.
+screen, reporting who has the device while it waits. It queues for ten minutes before giving up;
+change that with `deviceWaitSeconds`, and raise it if a single journey of yours can run longer than
+that. One device is assumed; with several attached, set `ANDROID_SERIAL` per run and each device
+gets a turn of its own.
 
 ## Sample
 

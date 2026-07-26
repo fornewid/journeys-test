@@ -33,8 +33,8 @@ abstract class JourneysExtension {
 
     /**
      * How long to queue behind other builds using the device before failing, in seconds.
-     * Default 3600, well above `timeoutSeconds` so a neighbour's run is waited out rather than
-     * mistaken for a hang. Lower it to fail fast instead of queueing.
+     * Default 600. Being below `timeoutSeconds`, it also gives up on a single neighbouring journey
+     * that runs longer than ten minutes; raise it where journeys take that long.
      */
     abstract val deviceWaitSeconds: Property<Long>
 }
