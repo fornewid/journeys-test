@@ -3,6 +3,7 @@ package io.github.fornewid.gradle.plugins.journeystest
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -40,6 +41,22 @@ class JourneysPluginFunctionalTest {
         assertTrue(junitXml().contains("tests=\"1\""), junitXml())
         assertTrue(File(projectDir, "build/journeys/login.verdict.json").isFile)
         assertTrue(File(projectDir, "build/journeys/report.html").isFile)
+    }
+
+    @Test
+    fun `a report from an earlier run does not survive into this one`() {
+        givenProject(verdict = """{"journey":"login","results":[{"action":"a","status":"PASSED"}]}""")
+        // A journey that has since been deleted or renamed. CI collects the whole directory, so
+        // leaving this behind would keep reporting a result nothing produces any more.
+        write("build/journey-results/TEST-gone.xml", "<testsuite name=\"gone\" tests=\"1\"/>")
+
+        runner("journeysTest").build()
+
+        assertFalse(
+            File(projectDir, "build/journey-results/TEST-gone.xml").isFile,
+            "a report for a journey that no longer exists survived the run",
+        )
+        assertTrue(junitXml().contains("tests=\"1\""), junitXml())
     }
 
     @Test
@@ -105,6 +122,6 @@ class JourneysPluginFunctionalTest {
             .create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments(*args, "--stacktrace")
+            .withArguments(*args, "--stacktrace", lockDirArg(projectDir))
             .forwardOutput()
 }

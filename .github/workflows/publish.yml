@@ -13,6 +13,9 @@ jobs:
     if: github.repository == 'fornewid/journeys-test'
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Tags and history, so the release notes can be a diff against the last release.
+          fetch-depth: 0
 
       - name: Read current version
         id: version
@@ -66,6 +69,33 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$VERSION" -m "Release $VERSION"
           git push origin "$VERSION"
+
+      # Written here rather than by a workflow watching for the tag: a tag pushed with the default
+      # GITHUB_TOKEN does not start another workflow run, so a tag-triggered release would never
+      # fire. Notes come from the commit log rather than merged pull requests, because most of this
+      # repository's history lands on main directly.
+      - name: Create GitHub Release
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PREVIOUS=$(git tag --sort=-v:refname | grep -vFx "$VERSION" | head -1)
+          {
+            echo "## What's Changed"
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              git log --no-merges --invert-grep --grep='^Prepare next development version' \
+                --pretty='- %s' "$PREVIOUS..$VERSION"
+              echo
+              echo "**Full Changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/$PREVIOUS...$VERSION"
+            else
+              git log --no-merges --invert-grep --grep='^Prepare next development version' \
+                --pretty='- %s' "$VERSION"
+            fi
+          } > release-notes.md
+          gh release create "$VERSION" --title "$VERSION" --notes-file release-notes.md
+          rm release-notes.md
 
       - name: Bump to next SNAPSHOT version
         if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}

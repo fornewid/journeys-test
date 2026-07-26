@@ -54,15 +54,15 @@ data class JourneyConfig(
         const val DEFAULT_JOURNEYS_DIR = "src/journeysTest"
         const val DEFAULT_OUTPUT_DIR = "journeys"
         const val DEFAULT_REPORTS_DIR = "journey-results"
-        const val DEFAULT_TIMEOUT_SECONDS = 900L
+        const val DEFAULT_TIMEOUT_SECONDS = 300L
 
         /**
          * How long a build queues behind others using the device, ten minutes by default.
          *
-         * This is a policy about how long a build should sit waiting, not a bound derived from how
-         * long a turn takes — and it is below [DEFAULT_TIMEOUT_SECONDS], so a neighbour running one
-         * journey for longer than this fails the waiting build even though nothing is wrong. Raise
-         * it where journeys run long, lower it to fail faster.
+         * Above [DEFAULT_TIMEOUT_SECONDS], so a neighbour is never given up on mid-journey: what
+         * runs out first is the turn, and only a queue that outlasts two of them ends the wait.
+         * How long a build should sit waiting is a policy the plugin cannot know, so this stays a
+         * plain option — raise it to queue longer, lower it to fail faster.
          */
         const val DEFAULT_DEVICE_WAIT_SECONDS = 600L
         const val JOURNEY_FILE_SUFFIX = ".journey.xml"

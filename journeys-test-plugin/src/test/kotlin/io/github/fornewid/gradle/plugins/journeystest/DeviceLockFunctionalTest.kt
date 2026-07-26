@@ -50,8 +50,13 @@ class DeviceLockFunctionalTest {
             .create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments("journeysTest", "--parallel", "--max-workers=4", "--stacktrace")
-            .forwardOutput()
+            .withArguments(
+                "journeysTest",
+                "--parallel",
+                "--max-workers=4",
+                "--stacktrace",
+                lockDirArg(projectDir),
+            ).forwardOutput()
             .build()
 
         val stamps =

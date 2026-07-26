@@ -30,6 +30,15 @@ tasks.test {
     // taking over the plugin's unit tests.
     useJUnitPlatform { includeEngines("junit-jupiter") }
     testLogging { events("failed") }
+    // Tests claim the device the same way a real run does. Keep that claim in the build directory
+    // so running them never queues behind, or blocks, a journey running on this machine.
+    systemProperty(
+        "journeys.deviceLockDir",
+        layout.buildDirectory
+            .dir("device-locks")
+            .get()
+            .asFile.path,
+    )
 }
 
 spotless {

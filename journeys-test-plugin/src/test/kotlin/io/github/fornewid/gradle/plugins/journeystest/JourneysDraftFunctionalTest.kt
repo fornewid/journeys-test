@@ -157,6 +157,6 @@ class JourneysDraftFunctionalTest {
             .create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments(*args, "--stacktrace")
+            .withArguments(*args, "--stacktrace", lockDirArg(projectDir))
             .forwardOutput()
 }

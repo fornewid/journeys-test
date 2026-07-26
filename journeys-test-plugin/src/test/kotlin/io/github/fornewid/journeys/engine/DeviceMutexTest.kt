@@ -17,15 +17,20 @@ class DeviceMutexTest {
     @TempDir
     lateinit var lockDir: File
 
+    private var previousLockDir: String? = null
+
     @BeforeEach
     fun useTemporaryLockDir() {
-        // Never contend with the developer's own runs while the suite is going.
-        System.setProperty(DeviceMutex.LOCK_DIR_PROPERTY, lockDir.path)
+        // A directory per test, so cases that leave a holder running cannot reach the next one.
+        previousLockDir = System.setProperty(DeviceMutex.LOCK_DIR_PROPERTY, lockDir.path)
     }
 
     @AfterEach
     fun restoreLockDir() {
-        System.clearProperty(DeviceMutex.LOCK_DIR_PROPERTY)
+        // Put back what the build set, rather than clearing it and dropping the whole suite onto
+        // the machine-wide lock.
+        previousLockDir?.let { System.setProperty(DeviceMutex.LOCK_DIR_PROPERTY, it) }
+            ?: System.clearProperty(DeviceMutex.LOCK_DIR_PROPERTY)
     }
 
     @Test

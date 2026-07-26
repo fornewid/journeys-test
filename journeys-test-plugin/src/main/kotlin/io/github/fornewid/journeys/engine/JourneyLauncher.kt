@@ -38,6 +38,10 @@ object JourneyLauncher {
                     .addTestEngines(JourneyTestEngine())
                     .build(),
             )
+        // Reports from earlier runs go, or a CI job collecting build/journey-results/*.xml would
+        // keep reporting results that are no longer produced — a journey that was deleted or
+        // renamed would look like it still passes.
+        config.reportsDir.listFiles()?.forEach { if (it.name.endsWith(".xml")) it.delete() }
         config.reportsDir.mkdirs()
         launcher.registerTestExecutionListeners(
             LegacyXmlReportGeneratingListener(config.reportsDir.toPath(), out),

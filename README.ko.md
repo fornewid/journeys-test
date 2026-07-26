@@ -46,7 +46,7 @@ journeys {
 - Codex: `codex exec --ephemeral --sandbox workspace-write -c 'sandbox_workspace_write.network_access=true'`
 - Antigravity: `agy --dangerously-skip-permissions --print-timeout 20m -p`
 
-세 예시 모두 프롬프트를 받는 플래그로 끝난다. 앞 옵션이 프롬프트를 삼키지 않게 하기 위해서다. 기기를 조작할 권한도 함께 준다. Antigravity의 `--print-timeout`은 기본이 5분이니 `timeoutSeconds`보다 크게 잡는다. 그러지 않으면 플러그인보다 에이전트가 먼저 포기해 verdict가 출력되지 않는다.
+세 예시 모두 프롬프트를 받는 플래그로 끝난다. 앞 옵션이 프롬프트를 삼키지 않게 하기 위해서다. 기기를 조작할 권한도 함께 준다. Antigravity의 `--print-timeout`은 기본이 5분으로 `timeoutSeconds`와 같으니 그보다 크게 잡는다. 그러지 않으면 플러그인보다 에이전트가 먼저 포기해 verdict가 출력되지 않는다.
 
 내장 프롬프트를 직접 바꾸고 싶으면 `prompt`로 덮어쓴다. 그 안의 `{journey}`가 journey 파일의 절대경로로 치환된다.
 
@@ -90,7 +90,7 @@ journeys {
 
 초안은 제품의 의도를 모르고도 관찰할 수 있는 것만 단정한다 — 화면이 열린다, 요소가 있다, 크래시하거나 멈추지 않는다. 비즈니스 규칙이나 계산값, 정렬 순서는 승격하는 사람이 채운다. 이 구분은 의도적이다. 자동 탐색이 세울 수 있는 것은 암묵적 오라클뿐이라, 기능적 정확성을 단정하는 초안은 추측이 된다.
 
-journey는 기기를 독점해야 한다. 멀티모듈 빌드에서는 Gradle이 두 에이전트를 동시에 돌려 서로의 앱을 조작하게 되므로, `journeysTest`와 `journeysDraft`는 한 번에 하나씩 실행된다. 한 빌드 안에서만이 아니라 빌드 사이에서도 그렇다 — 다른 터미널이나 다른 체크아웃에서 시작해도 화면을 두고 다투는 대신, 누가 기기를 쓰고 있는지 알리며 차례를 기다린다. 대기는 10분까지이며 `deviceWaitSeconds`로 바꾼다. journey 하나가 10분을 넘길 수 있는 프로젝트라면 이 값을 올린다. 기기는 한 대를 전제한다. 여러 대가 붙어 있으면 실행마다 `ANDROID_SERIAL`을 지정하면 기기별로 각자 차례를 갖는다.
+journey는 기기를 독점해야 한다. 멀티모듈 빌드에서는 Gradle이 두 에이전트를 동시에 돌려 서로의 앱을 조작하게 되므로, `journeysTest`와 `journeysDraft`는 한 번에 하나씩 실행된다. 한 빌드 안에서만이 아니라 빌드 사이에서도 그렇다 — 다른 터미널이나 다른 체크아웃에서 시작해도 화면을 두고 다투는 대신, 누가 기기를 쓰고 있는지 알리며 차례를 기다린다. 대기는 10분까지이며 `deviceWaitSeconds`로 바꾼다. 기기는 한 대를 전제한다. 여러 대가 붙어 있으면 실행마다 `ANDROID_SERIAL`을 지정하면 기기별로 각자 차례를 갖는다.
 
 ## 샘플
 

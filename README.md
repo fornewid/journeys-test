@@ -48,8 +48,8 @@ Any agent with a headless mode works; just change this value.
 
 Each example ends with the flag that takes the prompt, so the plugin's prompt is not swallowed by a
 preceding option, and grants the agent enough permission to drive the device. Note Antigravity's
-`--print-timeout` defaults to 5 minutes: keep it above `timeoutSeconds`, or the agent gives up
-before the plugin does and no verdict is printed.
+`--print-timeout` defaults to 5 minutes, the same as `timeoutSeconds`: keep it above that, or
+the agent gives up before the plugin does and no verdict is printed.
 
 To customize the built-in prompt, override `prompt`; its `{journey}` is replaced with the journey file's absolute path.
 
@@ -103,9 +103,8 @@ agents at once, each tapping while the other's app is on screen, so `journeysTes
 `journeysDraft` run one at a time — within a build, and between builds as well: start one in a
 second terminal, or from another checkout, and it waits its turn instead of fighting for the
 screen, reporting who has the device while it waits. It queues for ten minutes before giving up;
-change that with `deviceWaitSeconds`, and raise it if a single journey of yours can run longer than
-that. One device is assumed; with several attached, set `ANDROID_SERIAL` per run and each device
-gets a turn of its own.
+change that with `deviceWaitSeconds`. One device is assumed; with several attached, set
+`ANDROID_SERIAL` per run and each device gets a turn of its own.
 
 ## Sample
 

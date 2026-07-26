@@ -28,13 +28,12 @@ abstract class JourneysExtension {
     /** JUnit XML report output. Default `build/journey-results`. */
     abstract val reportsDir: DirectoryProperty
 
-    /** Agent timeout in seconds. Default 900. */
+    /** Agent timeout for one journey, in seconds. Default 300. */
     abstract val timeoutSeconds: Property<Long>
 
     /**
      * How long to queue behind other builds using the device before failing, in seconds.
-     * Default 600. Being below `timeoutSeconds`, it also gives up on a single neighbouring journey
-     * that runs longer than ten minutes; raise it where journeys take that long.
+     * Default 600, above `timeoutSeconds` so a neighbour is never given up on mid-journey.
      */
     abstract val deviceWaitSeconds: Property<Long>
 }
